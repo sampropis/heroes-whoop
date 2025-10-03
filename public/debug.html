@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WHOOP OAuth Debug - API Test Site</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <h1>WHOOP</h1>
+                <span>OAuth Debug</span>
+            </div>
+            <div>
+                <a href="/" class="cta-button">Back to Home</a>
+            </div>
+        </header>
+        
+        <main class="main-content">
+            <section class="hero">
+                <h2>OAuth Configuration Debug</h2>
+                <p>This page helps you debug OAuth configuration issues</p>
+            </section>
+            
+            <div class="dashboard-grid">
+                <section class="card">
+                    <h2>Configuration Status</h2>
+                    <div id="config-status">
+                        <div class="loading">Loading configuration...</div>
+                    </div>
+                </section>
+                
+                <section class="card">
+                    <h2>OAuth Flow Test</h2>
+                    <div id="oauth-test">
+                        <button id="test-auth-btn" class="cta-button">Test Authorization URL</button>
+                        <div id="auth-url-display" style="margin-top: 20px;"></div>
+                    </div>
+                </section>
+                
+                <section class="card">
+                    <h2>Test Individual Scopes</h2>
+                    <div class="profile-info">
+                        <p style="margin-bottom: 15px;">Test OAuth with specific scopes to identify problematic ones:</p>
+                        <div class="profile-item">
+                            <span class="profile-label">Single Scope:</span>
+                            <span class="profile-value">
+                                <a href="/auth/test/read:cycles" class="cta-button" style="font-size: 0.8rem; padding: 5px 10px;">read:cycles</a>
+                            </span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">Two Scopes:</span>
+                            <span class="profile-value">
+                                <a href="/auth/test/read:cycles,read:recovery" class="cta-button" style="font-size: 0.8rem; padding: 5px 10px;">cycles + recovery</a>
+                            </span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">Core Scopes:</span>
+                            <span class="profile-value">
+                                <a href="/auth/test/read:cycles,read:recovery,read:sleep,read:workout" class="cta-button" style="font-size: 0.8rem; padding: 5px 10px;">core 4 scopes</a>
+                            </span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">All Scopes:</span>
+                            <span class="profile-value">
+                                <a href="/auth/test/read:cycles,read:recovery,read:sleep,read:workout,read:profile,read:body_measurement" class="cta-button" style="font-size: 0.8rem; padding: 5px 10px;">all 6 scopes</a>
+                            </span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">Test offline:</span>
+                            <span class="profile-value">
+                                <a href="/auth/test/read:cycles,offline" class="cta-button" style="font-size: 0.8rem; padding: 5px 10px;">cycles + offline</a>
+                            </span>
+                        </div>
+                    </div>
+                </section>
+                
+                <section class="card">
+                    <h2>Session Information</h2>
+                    <div id="session-info">
+                        <div class="loading">Loading session info...</div>
+                    </div>
+                </section>
+                
+                <section class="card">
+                    <h2>Common Issues & Solutions</h2>
+                    <div class="profile-info">
+                        <div class="profile-item">
+                            <span class="profile-label">Issue:</span>
+                            <span class="profile-value">Client ID not set</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">Solution:</span>
+                            <span class="profile-value">Set WHOOP_CLIENT_ID in .env file</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">Issue:</span>
+                            <span class="profile-value">Redirect URI mismatch</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">Solution:</span>
+                            <span class="profile-value">Ensure redirect URI matches exactly in WHOOP Dashboard</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">Issue:</span>
+                            <span class="profile-value">Invalid client credentials</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">Solution:</span>
+                            <span class="profile-value">Verify Client ID and Secret in WHOOP Developer Dashboard</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">Issue:</span>
+                            <span class="profile-value" style="color: #ff6b35; font-weight: bold;">OAuth Client not allowed to request scopes</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">Solution:</span>
+                            <span class="profile-value">
+                                <a href="/setup#configure-scopes" class="cta-button" style="font-size: 0.8rem;">Configure scopes in WHOOP Dashboard</a>
+                            </span>
+                        </div>
+                    </div>
+                </section>
+                
+                <section class="card">
+                    <h2>Required Environment Variables</h2>
+                    <div class="profile-info">
+                        <div class="profile-item">
+                            <span class="profile-label">WHOOP_CLIENT_ID:</span>
+                            <span class="profile-value">From WHOOP Developer Dashboard</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">WHOOP_CLIENT_SECRET:</span>
+                            <span class="profile-value">From WHOOP Developer Dashboard</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">WHOOP_REDIRECT_URI:</span>
+                            <span class="profile-value">http://localhost:3000/auth/callback</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">WHOOP_AUTHORIZATION_URL:</span>
+                            <span class="profile-value">https://api.prod.whoop.com/oauth/oauth2/auth</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">WHOOP_TOKEN_URL:</span>
+                            <span class="profile-value">https://api.prod.whoop.com/oauth/oauth2/token</span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+        
+        <footer class="footer">
+            <p>&copy; 2025 WHOOP Developer API Test Site - Debug Mode</p>
+        </footer>
+    </div>
+    
+    <script type="module" src="../dist-public/ui.js"></script>
+    <script type="module" src="../dist-public/debug.js"></script>
+</body>
+</html> 

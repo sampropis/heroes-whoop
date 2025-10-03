@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WHOOP Dashboard - API Test Site</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <h1>WHOOP</h1>
+                <span>Dashboard</span>
+            </div>
+            <div class="user-info">
+                <span id="user-name">Loading...</span>
+                <button id="logout-btn" class="logout-btn">Logout</button>
+            </div>
+        </header>
+
+        <nav class="nav-tabs">
+            <a href="/dashboard" class="nav-tab active">Dashboard</a>
+            <a href="/activities" class="nav-tab">Activities</a>
+            <a href="/recoveries" class="nav-tab">Recoveries</a>
+            <a href="/cycles" class="nav-tab">Cycles</a>
+            <a href="/sleeps" class="nav-tab">Sleeps</a>
+            <a href="/debug" class="nav-tab">Debug</a>
+        </nav>
+        
+        <main class="dashboard-content">
+            <div class="filter-controls">
+                <div class="filter-group">
+                    <label for="dashboard-date">Date</label>
+                    <input type="date" id="dashboard-date">
+                </div>
+                <button id="open-date-picker-btn" class="btn-secondary" type="button">📅 Pick Date</button>
+                <button id="dashboard-refresh-btn" class="cta-button">Refresh</button>
+            </div>
+            <div class="dashboard-grid">
+                <!-- Today's Cycle Section -->
+                <section class="card today-cycle">
+                    <h2>Today's Cycle</h2>
+                    <div id="today-cycle-content">
+                        <div class="loading">Loading cycle data...</div>
+                    </div>
+                </section>
+                
+                <!-- Recovery Section -->
+                <section class="card recovery">
+                    <h2>Today's Recovery</h2>
+                    <div id="recovery-content">
+                        <div class="loading">Loading recovery data...</div>
+                    </div>
+                </section>
+                
+                <!-- Today's Activities Section -->
+                <section class="card todays-activities">
+                    <h2>Today's Activities</h2>
+                    <div id="todays-activities-content">
+                        <div class="loading">Loading today's activities...</div>
+                    </div>
+                </section>
+                
+                <!-- Profile Section -->
+                <section class="card profile">
+                    <h2>Profile</h2>
+                    <div id="profile-content">
+                        <div class="loading">Loading profile...</div>
+                    </div>
+                </section>
+            </div>
+        </main>
+        
+        <footer class="footer">
+            <p>&copy; 2025 WHOOP Developer API Test Site. Data provided by WHOOP Developer Platform.</p>
+        </footer>
+    </div>
+    
+    <script type="module" src="/dist-public/auth.js"></script>
+    <script type="module" src="/dist-public/ui.js"></script>
+    <script type="module" src="/dist-public/dashboard.js"></script>
+</body>
+</html> 

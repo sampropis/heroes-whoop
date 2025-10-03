@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WHOOP Developer Setup - API Test Site</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <h1>WHOOP</h1>
+                <span>Developer Setup Guide</span>
+            </div>
+            <div>
+                <a href="/" class="cta-button">Back to Home</a>
+            </div>
+        </header>
+        
+        <main class="main-content">
+            <section class="hero">
+                <h2>WHOOP Developer Dashboard Setup</h2>
+                <p>Step-by-step guide to configure your WHOOP Developer Application</p>
+            </section>
+            
+            <div class="dashboard-grid">
+                <section class="card">
+                    <h2>Step 1: Create WHOOP Developer Account</h2>
+                    <div class="profile-info">
+                        <div class="profile-item">
+                            <span class="profile-label">1. Visit:</span>
+                            <span class="profile-value">
+                                <a href="https://developer.whoop.com/dashboard" target="_blank" class="cta-button" style="font-size: 0.9rem;">WHOOP Developer Dashboard</a>
+                            </span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">2. Sign in:</span>
+                            <span class="profile-value">Use your WHOOP account credentials</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">3. Create Team:</span>
+                            <span class="profile-value">If you don't have one, create a new team</span>
+                        </div>
+                    </div>
+                </section>
+                
+                <section class="card">
+                    <h2>Step 2: Create New App</h2>
+                    <div class="profile-info">
+                        <div class="profile-item">
+                            <span class="profile-label">App Name:</span>
+                            <span class="profile-value">WHOOP API Test Site (or your preferred name)</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">Description:</span>
+                            <span class="profile-value">Test application for WHOOP Developer API</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">Redirect URI:</span>
+                            <span class="profile-value" style="font-family: monospace; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px;">
+                                http://localhost:3000/auth/callback
+                            </span>
+                        </div>
+                    </div>
+                </section>
+                
+                <section class="card" id="configure-scopes">
+                    <h2>Step 3: Configure Scopes</h2>
+                    <div class="profile-info">
+                        <p style="margin-bottom: 15px; color: #ff6b35; font-weight: bold;">
+                            ⚠️ IMPORTANT: You must select these scopes in your WHOOP Developer Dashboard app:
+                        </p>
+                        <div class="profile-item">
+                            <span class="profile-label">✅ read:cycles</span>
+                            <span class="profile-value">Access to physiological cycle data</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">✅ read:recovery</span>
+                            <span class="profile-value">Access to recovery scores and metrics</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">✅ read:sleep</span>
+                            <span class="profile-value">Access to sleep data and analysis</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">✅ read:workout</span>
+                            <span class="profile-value">Access to workout and activity data</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">✅ read:profile</span>
+                            <span class="profile-value">Access to basic user profile</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">✅ read:body_measurement</span>
+                            <span class="profile-value">Access to height, weight, max heart rate</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">❌ offline</span>
+                            <span class="profile-value" style="color: #fca5a5;">Do NOT select this scope (not supported)</span>
+                        </div>
+                    </div>
+                </section>
+                
+                <section class="card">
+                    <h2>Step 4: Get Credentials</h2>
+                    <div class="profile-info">
+                        <div class="profile-item">
+                            <span class="profile-label">Client ID:</span>
+                            <span class="profile-value">Copy from your app details page</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">Client Secret:</span>
+                            <span class="profile-value">Copy from your app details page</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">⚠️ Important:</span>
+                            <span class="profile-value">Never share your Client Secret publicly</span>
+                        </div>
+                    </div>
+                </section>
+                
+                <section class="card">
+                    <h2>Step 5: Configure Environment</h2>
+                    <div class="profile-info">
+                        <div class="profile-item">
+                            <span class="profile-label">1. Copy config file:</span>
+                            <span class="profile-value">
+                                <code style="background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-family: monospace;">
+                                    cp config.example.env .env
+                                </code>
+                            </span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">2. Edit .env file:</span>
+                            <span class="profile-value">Add your Client ID and Secret</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">3. Save and restart:</span>
+                            <span class="profile-value">
+                                <code style="background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-family: monospace;">
+                                    npm run dev
+                                </code>
+                            </span>
+                        </div>
+                    </div>
+                </section>
+                
+                <section class="card">
+                    <h2>Example .env Configuration</h2>
+                    <div style="margin-top: 15px;">
+                        <textarea readonly style="width: 100%; height: 200px; padding: 15px; border-radius: 8px; border: 1px solid #444; background: rgba(255,255,255,0.05); color: #fff; font-family: monospace; font-size: 13px; line-height: 1.4;">
+# WHOOP API Configuration
+WHOOP_CLIENT_ID=your_client_id_from_dashboard
+WHOOP_CLIENT_SECRET=your_client_secret_from_dashboard
+WHOOP_REDIRECT_URI=http://localhost:3000/auth/callback
+
+# WHOOP API URLs
+WHOOP_AUTHORIZATION_URL=https://api.prod.whoop.com/oauth/oauth2/auth
+WHOOP_TOKEN_URL=https://api.prod.whoop.com/oauth/oauth2/token
+WHOOP_API_BASE_URL=https://api.prod.whoop.com/developer/v2
+
+# Application Configuration
+PORT=3000
+SESSION_SECRET=your_secure_session_secret_here
+NODE_ENV=development
+
+# OAuth Scopes (space-separated)
+WHOOP_SCOPES=read:cycles read:recovery read:sleep read:workout read:profile read:body_measurement
+                        </textarea>
+                    </div>
+                </section>
+                
+                <section class="card">
+                    <h2>Troubleshooting</h2>
+                    <div class="profile-info">
+                        <div class="profile-item">
+                            <span class="profile-label">Error: Invalid scopes</span>
+                            <span class="profile-value">Check that all scopes are selected in WHOOP Dashboard</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">Error: Redirect URI mismatch</span>
+                            <span class="profile-value">Ensure redirect URI matches exactly (including port)</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">Error: Client not found</span>
+                            <span class="profile-value">Verify Client ID and Secret are correct</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label">Need help?</span>
+                            <span class="profile-value">
+                                <a href="/debug" class="cta-button" style="font-size: 0.9rem;">Use Debug Page</a>
+                            </span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+        
+        <footer class="footer">
+            <p>&copy; 2025 WHOOP Developer API Test Site - Setup Guide</p>
+        </footer>
+    </div>
+</body>
+</html> 

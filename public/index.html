@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WHOOP Developer API Test Site</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <h1>WHOOP</h1>
+                <span>Developer API Test Site</span>
+            </div>
+        </header>
+        
+        <main class="main-content">
+            <section class="hero">
+                <h2>Connect Your WHOOP Data</h2>
+                <p>
+                    This application demonstrates integration with the WHOOP Developer API. 
+                    Connect your WHOOP account to view your fitness and health data.
+                </p>
+                
+                <div class="features">
+                    <div class="feature">
+                        <h3>📊 Cycle Data</h3>
+                        <p>View your daily physiological cycles including strain and recovery metrics</p>
+                    </div>
+                    <div class="feature">
+                        <h3>😴 Sleep Analysis</h3>
+                        <p>Track your sleep patterns and performance metrics</p>
+                    </div>
+                    <div class="feature">
+                        <h3>🏃 Workout Tracking</h3>
+                        <p>Monitor your workout data and performance statistics</p>
+                    </div>
+                    <div class="feature">
+                        <h3>💪 Recovery Insights</h3>
+                        <p>Understand your recovery scores and readiness levels</p>
+                    </div>
+                </div>
+                
+                <div class="cta-section">
+                    <a href="/auth/login" class="cta-button">
+                        Connect with WHOOP
+                    </a>
+                    <p class="disclaimer">
+                        By connecting, you'll be redirected to WHOOP's secure OAuth flow to authorize this application.
+                    </p>
+                </div>
+            </section>
+        </main>
+        
+        <footer class="footer">
+            <p>&copy; 2025 WHOOP Developer API Test Site. Built with the WHOOP Developer Platform.</p>
+            <p>
+                <a href="https://developer.whoop.com" target="_blank">Developer Documentation</a> |
+                <a href="https://www.whoop.com" target="_blank">WHOOP Home</a> |
+                <a href="/setup">Setup Guide</a> |
+                <a href="/debug">Debug OAuth</a>
+            </p>
+        </footer>
+    </div>
+    
+    <script type="module" src="../dist-public/auth.js"></script>
+    <script type="module" src="../dist-public/ui.js"></script>
+    <script>
+        // Check if user is already authenticated and redirect to dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            if (whoopAuth.isAuthenticated()) {
+                console.log('User already authenticated, redirecting to dashboard...');
+                window.location.href = '/dashboard';
+            }
+        });
+    </script>
+</body>
+</html> 

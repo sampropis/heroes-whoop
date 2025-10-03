@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WHOOP Activities - API Test Site</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <h1>WHOOP</h1>
+                <span>Activities</span>
+            </div>
+            <div class="user-info">
+                <span id="user-name">Loading...</span>
+                <button id="logout-btn" class="logout-btn">Logout</button>
+            </div>
+        </header>
+
+        <nav class="nav-tabs">
+            <a href="/dashboard" class="nav-tab">Dashboard</a>
+            <a href="/activities" class="nav-tab active">Activities</a>
+            <a href="/recoveries" class="nav-tab">Recoveries</a>
+            <a href="/cycles" class="nav-tab">Cycles</a>
+            <a href="/sleeps" class="nav-tab">Sleeps</a>
+            <a href="/debug" class="nav-tab">Debug</a>
+        </nav>
+        
+        <main class="main-content">
+            <section class="activities-header">
+                <h2>Activity Feed</h2>
+                <p>View your activity history with pagination</p>
+                
+                <div class="filter-controls">
+                    <div class="filter-group">
+                        <label for="limit-select">Items per page:</label>
+                        <select id="limit-select">
+                            <option value="10">10</option>
+                            <option value="25" selected>25</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="start-date">Start Date:</label>
+                        <input type="date" id="start-date">
+                    </div>
+                    <div class="filter-group">
+                        <label for="end-date">End Date:</label>
+                        <input type="date" id="end-date">
+                    </div>
+                    <button id="refresh-btn" class="cta-button">Refresh</button>
+                </div>
+            </section>
+
+            <section class="activities-feed">
+                <div id="activities-content">
+                    <div class="loading">Loading activities...</div>
+                </div>
+                
+                <div class="pagination-controls">
+                    <button id="prev-btn" class="btn-secondary" disabled>Previous</button>
+                    <span id="page-info">Page 1</span>
+                    <button id="next-btn" class="btn-secondary" disabled>Next</button>
+                </div>
+                
+                <div id="load-more-container">
+                    <button id="load-more-btn" class="cta-button" style="display: none;">Load More Activities</button>
+                </div>
+            </section>
+        </main>
+        
+        <footer class="footer">
+            <p>&copy; 2025 WHOOP Developer API Test Site. Built with the WHOOP Developer Platform.</p>
+            <p>
+                <a href="https://developer.whoop.com" target="_blank">Developer Documentation</a> |
+                <a href="https://www.whoop.com" target="_blank">WHOOP Home</a> |
+                <a href="/setup">Setup Guide</a>
+            </p>
+        </footer>
+    </div>
+
+    <!-- Activity Detail Modal -->
+    <div id="activity-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Activity Details</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="modal-loading" class="loading">Loading activity details...</div>
+                <div id="modal-content" style="display: none;">
+                    <!-- Activity details will be populated here -->
+                </div>
+                <div id="modal-error" class="error" style="display: none;">
+                    <!-- Error message will be shown here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="../dist-public/auth.js"></script>
+    <script type="module" src="../dist-public/ui.js"></script>
+    <script type="module" src="../dist-public/activities.js"></script>
+</body>
+</html> 
