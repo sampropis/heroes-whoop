@@ -11,11 +11,29 @@
         <header class="header">
             <div class="logo">
                 <h1>WHOOP</h1>
-                <span>Dashboard</span>
+                <span>Performance Dashboard</span>
             </div>
             <div class="user-info">
-                <span id="user-name">Loading...</span>
-                <button id="logout-btn" class="logout-btn">Logout</button>
+                <div class="profile-dropdown">
+                    <div class="profile-trigger">
+                        <div class="avatar-circle">
+                            <span id="user-initials">?</span>
+                        </div>
+                        <div class="user-details">
+                            <span id="user-name">Loading...</span>
+                            <span class="user-status">Connected</span>
+                        </div>
+                        <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div class="profile-dropdown-content" id="profile-dropdown">
+                        <div class="profile-info-compact">
+                            <div id="profile-content-header">
+                                <div class="loading">Loading profile...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button id="logout-btn" class="logout-btn">Sign Out</button>
             </div>
         </header>
 
@@ -39,7 +57,7 @@
             </div>
             <div class="dashboard-grid">
                 <!-- Today's Cycle Section -->
-                <section class="card today-cycle">
+                <section class="card today-cycle compact-card">
                     <h2>Today's Cycle</h2>
                     <div id="today-cycle-content">
                         <div class="loading">Loading cycle data...</div>
@@ -47,33 +65,33 @@
                 </section>
                 
                 <!-- Recovery Section -->
-                <section class="card recovery">
+                <section class="card recovery compact-card">
                     <h2>Today's Recovery</h2>
                     <div id="recovery-content">
                         <div class="loading">Loading recovery data...</div>
                     </div>
                 </section>
                 
-                <!-- Today's Activities Section -->
-                <section class="card todays-activities">
-                    <h2>Today's Activities</h2>
-                    <div id="todays-activities-content">
-                        <div class="loading">Loading today's activities...</div>
+                <!-- Sleep Section -->
+                <section class="card todays-sleep compact-card">
+                    <h2>Today's Sleep</h2>
+                    <div id="todays-sleep-content">
+                        <div class="loading">Loading sleep data...</div>
                     </div>
                 </section>
                 
-                <!-- Profile Section -->
-                <section class="card profile">
-                    <h2>Profile</h2>
-                    <div id="profile-content">
-                        <div class="loading">Loading profile...</div>
+                <!-- Today's Activities Section -->
+                <section class="card todays-activities compact-card">
+                    <h2>Today's Activities</h2>
+                    <div id="todays-activities-content">
+                        <div class="loading">Loading today's activities...</div>
                     </div>
                 </section>
             </div>
         </main>
         
         <footer class="footer">
-            <p>&copy; 2025 WHOOP Developer API Test Site. Data provided by WHOOP Developer Platform.</p>
+            <p>&copy; 2025 WHOOP Developer API Integration. Your performance data, powered by WHOOP.</p>
         </footer>
     </div>
     

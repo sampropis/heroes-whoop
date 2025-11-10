@@ -13,6 +13,15 @@ interface Configuration {
     accessToken: string;
 }
 
+interface SessionStatus {
+    sessionId?: string;
+    backgroundRefresh: boolean;
+    timeUntilExpiry?: number;
+}
+
+// Declare global to access whoopAuth
+(window as any).whoopAuth = (window as any).whoopAuth || {};
+
 class DebugPage {
     private config: Configuration | null;
 
@@ -23,7 +32,13 @@ class DebugPage {
 
     private async init(): Promise<void> {
         await this.loadConfiguration();
+        await this.loadSessionStatus();
         this.setupEventListeners();
+        
+        // Refresh session status every 10 seconds
+        setInterval(() => {
+            this.loadSessionStatus();
+        }, 10000);
     }
 
     private async loadConfiguration(): Promise<void> {
@@ -39,11 +54,94 @@ class DebugPage {
         }
     }
 
+    private async loadSessionStatus(): Promise<void> {
+        try {
+            // Get status from auth endpoint
+            const response = await fetch('/auth/status');
+            if (!response.ok) throw new Error('Failed to fetch session status');
+            
+            const status = await response.json() as SessionStatus;
+            
+            // Also get client-side token info
+            const accessToken = localStorage.getItem('whoop_access_token');
+            const refreshToken = localStorage.getItem('whoop_refresh_token');
+            const tokenExpiry = localStorage.getItem('whoop_token_expiry');
+            const backgroundRefreshActive = window.whoopAuth?.isBackgroundRefreshActive() || false;
+            
+            this.displaySessionStatus(status, {
+                accessToken: accessToken ? accessToken.substring(0, 20) + '...' : 'NOT SET',
+                refreshToken: refreshToken ? refreshToken.substring(0, 20) + '...' : 'NOT SET',
+                tokenExpiry: tokenExpiry ? new Date(parseInt(tokenExpiry)).toLocaleString() : 'NOT SET',
+                backgroundRefreshActive
+            });
+        } catch (error) {
+            console.error('Failed to load session status:', error);
+        }
+    }
+
+    private displaySessionStatus(status: SessionStatus, clientInfo: {
+        accessToken: string;
+        refreshToken: string;
+        tokenExpiry: string;
+        backgroundRefreshActive: boolean;
+    }): void {
+        const sessionInfo = document.getElementById('session-info');
+        if (!sessionInfo) return;
+        
+        const timeUntilExpiry = status.timeUntilExpiry;
+        let expiryText = 'N/A';
+        let expiryClass = 'status-pending';
+        
+        if (timeUntilExpiry) {
+            const minutes = Math.floor(timeUntilExpiry / (1000 * 60));
+            const hours = Math.floor(minutes / 60);
+            if (hours > 0) {
+                expiryText = `${hours}h ${minutes % 60}m`;
+                expiryClass = hours >= 2 ? 'status-scored' : 'status-pending';
+            } else {
+                expiryText = `${minutes}m`;
+                expiryClass = minutes >= 30 ? 'status-pending' : 'error';
+            }
+        }
+        
+        const sessionHtml = `
+            <div class="profile-info">
+                <div class="profile-item">
+                    <span class="profile-label">Session ID:</span>
+                    <span class="profile-value">${status.sessionId ? status.sessionId.substring(0, 12) + '...' : 'N/A'}</span>
+                </div>
+                <div class="profile-item">
+                    <span class="profile-label">Background Refresh:</span>
+                    <span class="profile-value ${clientInfo.backgroundRefreshActive ? 'status-scored' : 'error'}">
+                        ${clientInfo.backgroundRefreshActive ? '✅ Active (every 15 min)' : '❌ Inactive'}
+                    </span>
+                </div>
+                <div class="profile-item">
+                    <span class="profile-label">Token Expires In:</span>
+                    <span class="profile-value ${expiryClass}">${expiryText}</span>
+                </div>
+                <div class="profile-item">
+                    <span class="profile-label">Token Expiry Time:</span>
+                    <span class="profile-value">${clientInfo.tokenExpiry}</span>
+                </div>
+                <div class="profile-item">
+                    <span class="profile-label">Access Token (Client):</span>
+                    <span class="profile-value" style="font-family: monospace; font-size: 0.85em;">${clientInfo.accessToken}</span>
+                </div>
+                <div class="profile-item">
+                    <span class="profile-label">Refresh Token (Client):</span>
+                    <span class="profile-value" style="font-family: monospace; font-size: 0.85em;">${clientInfo.refreshToken}</span>
+                </div>
+            </div>
+        `;
+        
+        sessionInfo.innerHTML = sessionHtml;
+    }
+
     private displayConfiguration(config: Configuration): void {
         const configStatus = document.getElementById('config-status');
-        const sessionInfo = document.getElementById('session-info');
         
-        if (!configStatus || !sessionInfo) return;
+        if (!configStatus) return;
 
         const configHtml = `
             <div class="profile-info">
@@ -79,24 +177,18 @@ class DebugPage {
                     <span class="profile-label">Scopes Array:</span>
                     <span class="profile-value">${config.scopesArray ? config.scopesArray.join(', ') : 'N/A'}</span>
                 </div>
-            </div>
-        `;
-        
-        const sessionHtml = `
-            <div class="profile-info">
                 <div class="profile-item">
-                    <span class="profile-label">OAuth State:</span>
+                    <span class="profile-label">OAuth State (Server):</span>
                     <span class="profile-value ${config.sessionState === 'SET' ? 'status-scored' : 'status-pending'}">${config.sessionState}</span>
                 </div>
                 <div class="profile-item">
-                    <span class="profile-label">Access Token:</span>
+                    <span class="profile-label">Access Token (Server):</span>
                     <span class="profile-value ${config.accessToken === 'SET' ? 'status-scored' : 'status-pending'}">${config.accessToken}</span>
                 </div>
             </div>
         `;
         
         configStatus.innerHTML = configHtml;
-        sessionInfo.innerHTML = sessionHtml;
         
         // Store config for later use
         this.config = config;

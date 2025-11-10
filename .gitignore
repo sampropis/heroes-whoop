@@ -113,4 +113,4 @@ dist-public/
 .env.dev
 .env.prod
 .env.local.dev
-.env.local.prod
+.env.local.prodcookies.txt

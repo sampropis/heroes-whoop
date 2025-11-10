@@ -14,10 +14,6 @@ const envFile =
     ? '.env.prod'
     : process.env.NODE_ENV === 'development'
     ? '.env.dev'
-    : process.env.NODE_ENV === 'locald'
-    ? '.env.local.dev'
-    : process.env.NODE_ENV === 'localp'
-    ? '.env.local.prod'
     : '.env';
 
 dotenv.config({ path: envFile });
@@ -61,14 +57,20 @@ app.use(express.static(getPublicDir(__dirname)));
 app.use('/dist-public', express.static(getDistPublicDir(__dirname)));
 
 // Session configuration
+// Use SECURE_COOKIES env var to control secure cookie setting
+// Set to 'true' only if you're actually serving over HTTPS
+// Default to false for local development, even in production mode
+const useSecureCookies = process.env.SECURE_COOKIES === 'true';
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: useSecureCookies,
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'lax' // Help with OAuth redirects
   }
 }));
 
@@ -190,10 +192,15 @@ const config = {
   authorizationUrl: process.env.WHOOP_AUTHORIZATION_URL || 'https://api.prod.whoop.com/oauth/oauth2/auth',
   tokenUrl: process.env.WHOOP_TOKEN_URL || 'https://api.prod.whoop.com/oauth/oauth2/token',
   apiBaseUrl: process.env.WHOOP_API_BASE_URL || 'https://api.prod.whoop.com/developer',
+  // Flexible scope parsing: handles both space-separated and comma-separated formats
+  // Examples (all work):
+  //   "read:cycles read:recovery"
+  //   "read:cycles,read:recovery"
+  //   "read:cycles, read:recovery"
   scopes: (process.env.WHOOP_SCOPES || 'read:cycles read:recovery read:sleep read:workout read:profile read:body_measurement offline')
-    .replace(/,/g, ' ')  // Convert any commas to spaces
+    .replace(/,/g, ' ')   // Convert any commas to spaces
     .replace(/\s+/g, ' ') // Normalize multiple spaces to single space
-    .trim()              // Remove leading/trailing spaces
+    .trim()               // Remove leading/trailing spaces
 };
 
 // Helper function to generate random state for OAuth
@@ -284,6 +291,8 @@ app.get('/auth/login', (req: Request, res: Response) => {
   console.log('Scopes (raw):', config.scopes);
   console.log('Scopes (individual):', config.scopes.split(' '));
   console.log('State:', state);
+  console.log('Session ID:', req.sessionID);
+  console.log('Session oauthState set to:', req.session.oauthState);
 
   // Clean and validate scopes
   const cleanScopes = config.scopes
@@ -301,12 +310,27 @@ app.get('/auth/login', (req: Request, res: Response) => {
   authUrl.searchParams.append('state', state);
 
   console.log('Full authorization URL:', authUrl.toString());
-  res.redirect(authUrl.toString());
+  
+  // Save session before redirect
+  req.session.save((err) => {
+    if (err) {
+      console.error('Session save error:', err);
+      return res.status(500).json({ error: 'Failed to save session' });
+    }
+    console.log('Session saved successfully, redirecting to OAuth provider');
+    res.redirect(authUrl.toString());
+  });
 });
 
 // OAuth callback
 app.get('/auth/callback', async (req: Request, res: Response) => {
   const { code, state, error, error_description } = req.query;
+
+  console.log('OAuth callback received:');
+  console.log('Session ID:', req.sessionID);
+  console.log('Session oauthState:', req.session.oauthState);
+  console.log('Received state:', state);
+  console.log('Received code:', code ? 'SET' : 'NOT SET');
 
   // Check for OAuth errors
   if (error) {

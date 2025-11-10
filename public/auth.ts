@@ -19,9 +19,11 @@ declare global {
 
 class WhoopAuth {
     private tokenRefreshPromise: Promise<string> | null;
+    private refreshIntervalId: number | null;
 
     constructor() {
         this.tokenRefreshPromise = null;
+        this.refreshIntervalId = null;
     }
 
     // Token management
@@ -227,6 +229,9 @@ class WhoopAuth {
     // Logout user
     public async logout(): Promise<void> {
         try {
+            // Stop background refresh
+            this.stopBackgroundRefresh();
+            
             // Call logout endpoint
             await fetch('/auth/logout', { method: 'POST' });
         } catch (error) {
@@ -270,7 +275,50 @@ class WhoopAuth {
 
     // Initialize authentication (call this on protected pages)
     public async init(): Promise<boolean> {
-        return this.checkAuthOnLoad();
+        const isAuth = this.checkAuthOnLoad();
+        if (isAuth) {
+            this.startBackgroundRefresh();
+        }
+        return isAuth;
+    }
+
+    // Start background token refresh (every 15 minutes)
+    public startBackgroundRefresh(): void {
+        // Stop existing interval if any
+        this.stopBackgroundRefresh();
+
+        console.log('Starting background token refresh (every 15 minutes)');
+        
+        // Refresh token every 15 minutes (900000 ms)
+        this.refreshIntervalId = window.setInterval(async () => {
+            try {
+                const refreshToken = this.getRefreshToken();
+                if (refreshToken && refreshToken !== 'undefined') {
+                    console.log('Background token refresh triggered');
+                    await this.refreshToken();
+                    console.log('Background token refresh successful');
+                } else {
+                    console.log('No refresh token available, skipping background refresh');
+                }
+            } catch (error) {
+                console.error('Background token refresh failed:', error);
+                // Don't redirect on background refresh failure - user is still working
+            }
+        }, 15 * 60 * 1000); // 15 minutes
+    }
+
+    // Stop background token refresh
+    public stopBackgroundRefresh(): void {
+        if (this.refreshIntervalId !== null) {
+            console.log('Stopping background token refresh');
+            window.clearInterval(this.refreshIntervalId);
+            this.refreshIntervalId = null;
+        }
+    }
+
+    // Check if background refresh is active
+    public isBackgroundRefreshActive(): boolean {
+        return this.refreshIntervalId !== null;
     }
 }
 

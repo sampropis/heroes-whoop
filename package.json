@@ -5,9 +5,9 @@
   "main": "app.js",
   "scripts": {
     "start": "NODE_ENV=production npm run build && NODE_ENV=production node dist/app.js",
-    "dev": "NODE_ENV=development nodemon --watch 'app.ts' --exec 'ts-node app.ts'",
-    "locald": "NODE_ENV=locald nodemon --watch 'app.ts' --exec 'ts-node app.ts'",
-    "localp": "NODE_ENV=localp npm run build && NODE_ENV=localp node dist/app.js",
+    "dev": "NODE_ENV=development nodemon --watch 'app.ts' --exec 'ts-node -r dotenv/config app.ts dotenv_config_path=.env.dev'",
+    "prod": "NODE_ENV=production npm run build && NODE_ENV=production node -r dotenv/config dist/app.js dotenv_config_path=.env.prod",
+    "local": "NODE_ENV=local nodemon --watch 'app.ts' --exec 'ts-node -r dotenv/config app.ts dotenv_config_path=.env.local'",
     "test": "jest --coverage",
     "build": "npm run build:backend && npm run build:frontend",
     "build:backend": "tsc -p tsconfig.json",
