@@ -18,8 +18,19 @@ function runMigrations(db: Database.Database): void {
     .get() as { name?: string } | undefined;
 
   if (!tableCheck || !tableCheck.name) {
-    const migrationPath = path.join(__dirname, 'migrations', '001_init.sql');
-    const sql = fs.readFileSync(migrationPath, 'utf-8');
+    // Resolve migrations from project root even when running compiled code from dist/
+    const rootLike =
+      path.basename(__dirname) === 'dist' ? path.resolve(__dirname, '..') : __dirname;
+    const candidates = [
+      path.join(rootLike, 'migrations', '001_init.sql'),
+      path.join(__dirname, 'migrations', '001_init.sql'),
+      path.join(process.cwd(), 'migrations', '001_init.sql'),
+    ];
+    const found = candidates.find(p => fs.existsSync(p));
+    if (!found) {
+      throw new Error(`Migration file not found. Looked in: ${candidates.join(', ')}`);
+    }
+    const sql = fs.readFileSync(found, 'utf-8');
     db.exec(sql);
   }
 
