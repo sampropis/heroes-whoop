@@ -283,6 +283,10 @@ async function makeWhoopApiRequest<T>(endpoint: string, accessToken: string): Pr
   }
 }
 
+function deleteMemberByWhoopUserId(db: any, whoopUserId: string) {
+  db.prepare('DELETE FROM members WHERE whoop_user_id = ?').run(whoopUserId);
+}
+
 // Try to robustly extract a recovery score (0-100) from arbitrary objects
 function extractRecoveryScore(obj: any, maxDepth = 4): number | null {
   if (!obj || typeof obj !== 'object' || maxDepth < 0) return null;
@@ -870,6 +874,21 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
           }
         } catch (err) {
           console.error(`Failed to update metrics for member ${m.id}`, err);
+          // If token is revoked/invalid, remove this member so they disappear from the leaderboard
+          const axiosError = err as AxiosError;
+          const status = axiosError?.response?.status;
+          const data: any = axiosError?.response?.data;
+          const isInvalidGrant =
+            status === 400 || status === 401 ||
+            (typeof data === 'object' && (data?.error === 'invalid_grant' || data?.error === 'invalid_request'));
+          if (isInvalidGrant) {
+            try {
+              deleteMemberByWhoopUserId(db, m.whoop_user_id);
+              console.log(`Removed member ${m.whoop_user_id} due to invalid/revoked token`);
+            } catch (e) {
+              console.error('Failed to remove member after token failure', e);
+            }
+          }
           // Fallback to cached values if available
           if (cached) {
             sleepTotalSec = cached.sleep_total_sec ?? null;
@@ -900,6 +919,23 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Leaderboard aggregation failed', error);
     res.status(500).json({ error: 'Failed to build leaderboard' });
+  }
+});
+
+// Allow a user to unlink themselves: requires Authorization header with a valid access token
+app.post('/api/unlink', ensureAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const profile: any = await makeWhoopApiRequest('/v2/user/profile/basic', req.accessToken!);
+    const whoopUserId: string = String(profile?.user_id ?? profile?.id ?? '');
+    if (!whoopUserId) {
+      return res.status(400).json({ error: 'Unable to determine user id from profile' });
+    }
+    const db = getDb();
+    deleteMemberByWhoopUserId(db, whoopUserId);
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('Unlink failed', e);
+    return res.status(500).json({ error: 'Failed to unlink user' });
   }
 });
 
