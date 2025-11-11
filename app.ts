@@ -283,6 +283,36 @@ async function makeWhoopApiRequest<T>(endpoint: string, accessToken: string): Pr
   }
 }
 
+// Try to robustly extract a recovery score (0-100) from arbitrary objects
+function extractRecoveryScore(obj: any, maxDepth = 4): number | null {
+  if (!obj || typeof obj !== 'object' || maxDepth < 0) return null;
+  const candidates: number[] = [];
+  const visit = (o: any, depth: number) => {
+    if (!o || typeof o !== 'object' || depth < 0) return;
+    for (const [k, v] of Object.entries(o)) {
+      if (typeof v === 'number') {
+        const key = k.toLowerCase();
+        if (key.includes('recovery')) {
+          // Normalize to 0-100 if it's 0-1
+          const val = v <= 1 ? v * 100 : v;
+          if (val >= 0 && val <= 100) candidates.push(val);
+        }
+        if (key === 'score') {
+          // Some payloads use plain "score" under a recovery object – handled by recursion too
+          const val = v <= 1 ? v * 100 : v;
+          if (val >= 0 && val <= 100) candidates.push(val);
+        }
+      } else if (v && typeof v === 'object') {
+        visit(v, depth - 1);
+      }
+    }
+  };
+  visit(obj, maxDepth);
+  if (candidates.length === 0) return null;
+  // Prefer the highest plausible score (commonly 0-100)
+  return Math.max(...candidates);
+}
+
 // Routes
 // Home route
 app.get('/', (req: Request, res: Response) => {
@@ -751,8 +781,14 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
               // Primary: list endpoint for today
               const recResp: any = await makeWhoopApiRequest(`/v2/recovery?start=${startISO}&end=${endISO}&limit=1`, accessToken);
               const r = (recResp?.records && recResp.records[0]) || (Array.isArray(recResp) ? recResp[0] : recResp);
-              const score = Number(r?.score ?? r?.recovery_score ?? r?.recovery?.score);
-              recoveryScore = Number.isFinite(score) ? score : null;
+              const scoreA = Number(r?.score ?? r?.recovery_score ?? r?.recovery?.score);
+              let extracted = Number.isFinite(scoreA) ? scoreA : extractRecoveryScore(r);
+              if (typeof extracted === 'number') {
+                if (extracted <= 1) extracted = extracted * 100;
+                recoveryScore = extracted;
+              } else {
+                recoveryScore = null;
+              }
             } catch {
               // ignore and try to derive from cycle below if available
             }
@@ -765,14 +801,18 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
                   // Prefer score on the cycle if present
                   const recFromCycle = Number(c?.score?.recovery_score ?? c?.recovery_score ?? c?.recovery?.score);
                   if (Number.isFinite(recFromCycle)) {
-                    recoveryScore = recFromCycle;
+                    recoveryScore = recFromCycle <= 1 ? recFromCycle * 100 : recFromCycle;
                   } else {
                     // Fallback endpoint: /cycle/{id}/recovery
                     const cycleId = c?.id ?? c?.cycle_id ?? c?.cycleId;
                     if (cycleId != null) {
                       const recObj: any = await makeWhoopApiRequest(`/v2/cycle/${cycleId}/recovery`, accessToken);
                       const score2 = Number(recObj?.score ?? recObj?.recovery_score ?? recObj?.recovery?.score);
-                      if (Number.isFinite(score2)) recoveryScore = score2;
+                      let extracted2 = Number.isFinite(score2) ? score2 : extractRecoveryScore(recObj);
+                      if (typeof extracted2 === 'number') {
+                        if (extracted2 <= 1) extracted2 = extracted2 * 100;
+                        recoveryScore = extracted2;
+                      }
                     }
                   }
                 }
