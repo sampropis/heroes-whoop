@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = document.getElementById('refresh-strain');
     if (btn) {
         btn.addEventListener('click', () => {
-            refresh('strain');
+            refresh('all'); // force refresh sleep, recovery, and strain
         });
     }
     const themeBtn = document.getElementById('toggle-theme');

@@ -18,14 +18,19 @@
         header.header h1 { font-size: 36px; }
         #board-date { font-size: 16px; color: #ddd; }
         .actions { margin: 12px 0; display: flex; gap: 8px; }
-        .btn { background: #222; color: #fff; padding: 8px 12px; border-radius: 6px; border: 1px solid #333; cursor: pointer; }
+        .btn { background: #222; color: #fff; padding: 6px 10px; border-radius: 6px; border: 1px solid #333; cursor: pointer; font-size: 12px; }
+        .btn.btn-subtle { background: transparent; color: inherit; border-color: #444; opacity: 0.8; }
         .btn:hover { background: #2a2a2a; }
         /* Light theme overrides */
         body.light { background: #f7f7f7; color: #111; }
         body.light .board { background: #fff; border: 1px solid #e5e5e5; }
+        body.light .header { background: #f7f7f7 !important; border-bottom: 1px solid #e5e5e5; }
+        body.light .header .logo h1 { color: #111; }
+        body.light .header .logo span { color: #666; }
         body.light .muted { color: #555; }
         body.light .btn { background: #eee; color: #111; border: 1px solid #d0d0d0; }
-        body.light .avatar { background: #ddd; color: #111; }
+        /* keep initials white for contrast even in light mode */
+        body.light .avatar { background: #ddd; }
     </style>
     <script type="module" src="../dist-public/ui.js"></script>
     <script type="module" src="../dist-public/leaderboard.js"></script>
@@ -48,7 +53,7 @@
             <section>
                 <div class="muted" id="board-date"></div>
                 <div class="actions">
-                    <button id="refresh-strain" class="btn">Refresh Strain</button>
+                    <button id="refresh-strain" class="btn btn-subtle">Refresh</button>
                     <button id="toggle-theme" class="btn">Toggle Light/Dark</button>
                 </div>
                 <div class="boards">
@@ -68,8 +73,13 @@
             </section>
         </main>
         <footer class="footer">
-            <p>&copy; 2025 Heroes Fitness x WHOOP — powered by WHOOP</p>
-            <p class="muted">Auto-refreshes every 60 seconds.</p>
+            <div class="footer-inner" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <div>
+                    <p>&copy; 2025 — data by WHOOP</p>
+                    <p class="muted">Auto-refreshes every 60 seconds.</p>
+                </div>
+                <div id="board-date" class="muted"></div>
+            </div>
         </footer>
     </div>
 </body>

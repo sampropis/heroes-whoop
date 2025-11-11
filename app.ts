@@ -647,7 +647,7 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
   try {
     const staleStrainMs = 5 * 60 * 1000;   // 5 minutes
     const staleHourlyMs = 60 * 60 * 1000;  // 1 hour
-    const forceArg = String((req.query as any).force || '');
+    const forceArg = String((req.query as any).force || '').toLowerCase();
     const db = getDb();
     const members = db.prepare('SELECT id, whoop_user_id, display_name, avatar_url, refresh_token_enc FROM members').all() as Array<{
       id: number; whoop_user_id: string; display_name: string; avatar_url?: string; refresh_token_enc: string;
@@ -676,8 +676,9 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
       let sleepConsistencyPct: number | null = null;
 
       // Determine which metrics need refresh
-      const needStrainFetch = forceArg === 'strain' ? true : ageMs > staleStrainMs;
-      const needHourlyFetch = ageMs > staleHourlyMs;
+      const forceAll = forceArg === 'all';
+      const needStrainFetch = forceAll || forceArg === 'strain' ? true : ageMs > staleStrainMs;
+      const needHourlyFetch = forceAll || forceArg === 'sleep' || forceArg === 'recovery' ? true : ageMs > staleHourlyMs;
 
       if (!needStrainFetch && cached) {
         // Use cache for all when fresh within 5 minutes
