@@ -64,6 +64,10 @@ app.use('/dist-public', express.static(getDistPublicDir(__dirname)));
 // Default to false for local development, even in production mode
 const useSecureCookies = process.env.SECURE_COOKIES === 'true';
 
+// Behind a reverse proxy (Render, Heroku, etc.) secure cookies require trust proxy
+// This ensures req.secure is set correctly so the session cookie is set
+app.set('trust proxy', 1);
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false,
