@@ -644,6 +644,7 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
   try {
     const staleStrainMs = 5 * 60 * 1000;   // 5 minutes
     const staleHourlyMs = 60 * 60 * 1000;  // 1 hour
+    const forceArg = String((req.query as any).force || '');
     const db = getDb();
     const members = db.prepare('SELECT id, whoop_user_id, display_name, avatar_url, refresh_token_enc FROM members').all() as Array<{
       id: number; whoop_user_id: string; display_name: string; avatar_url?: string; refresh_token_enc: string;
@@ -653,7 +654,7 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
     const endISO = end.toISOString();
     const todayStr = start.toISOString().slice(0, 10);
 
-    const sleepBoard: Array<{ name: string; value: number; seconds?: number; avatar?: string }> = [];
+    const sleepBoard: Array<{ name: string; value: number; seconds?: number; consistency?: number; avatar?: string }> = [];
     const recoveryBoard: Array<{ name: string; value: number; avatar?: string }> = [];
     const strainBoard: Array<{ name: string; value: number; avatar?: string }> = [];
 
@@ -669,9 +670,10 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
       let sleepPerfPct: number | null = null;
       let recoveryScore: number | null = null;
       let strainScore: number | null = null;
+      let sleepConsistencyPct: number | null = null;
 
       // Determine which metrics need refresh
-      const needStrainFetch = ageMs > staleStrainMs;
+      const needStrainFetch = forceArg === 'strain' ? true : ageMs > staleStrainMs;
       const needHourlyFetch = ageMs > staleHourlyMs;
 
       if (!needStrainFetch && cached) {
@@ -700,11 +702,16 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
               const records: any[] = (sleepResp?.records as any[]) || (Array.isArray(sleepResp) ? sleepResp : []);
               let totalMinutes = 0;
               let bestPerf: number | null = null;
+              let bestConsistency: number | null = null;
               for (const r of records) {
                 const score = r?.score || r?.sleep?.score;
                 const perf = Number(score?.sleep_performance_percentage);
                 if (Number.isFinite(perf)) {
                   bestPerf = Math.max(bestPerf ?? perf, perf);
+                }
+                const consistency = Number(score?.sleep_consistency_percentage);
+                if (Number.isFinite(consistency)) {
+                  bestConsistency = Math.max(bestConsistency ?? consistency, consistency);
                 }
                 // Prefer stage minutes sum (deep + rem + light)
                 const deep = Number(score?.slow_wave_sleep_minutes) || 0;
@@ -724,12 +731,14 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
               }
               sleepTotalSec = totalMinutes > 0 ? totalMinutes * 60 : null;
               sleepPerfPct = bestPerf !== null ? Math.round(bestPerf) : null;
+              sleepConsistencyPct = bestConsistency !== null ? Math.round(bestConsistency) : null;
             } catch (_) {
               // ignore
             }
           } else if (cached) {
             sleepTotalSec = cached.sleep_total_sec ?? null;
             sleepPerfPct = cached.sleep_perf_pct ?? null;
+            sleepConsistencyPct = (cached as any).sleep_consistency_pct ?? null;
           }
 
           // Recovery (hourly): recovery score
@@ -765,11 +774,11 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
             .prepare('SELECT id FROM daily_metrics WHERE member_id = ? AND date = ?')
             .get(m.id, todayStr) as { id?: number } | undefined;
           if (exists?.id) {
-            db.prepare("UPDATE daily_metrics SET sleep_total_sec = COALESCE(?, sleep_total_sec), sleep_perf_pct = COALESCE(?, sleep_perf_pct), recovery_score = COALESCE(?, recovery_score), strain_score = COALESCE(?, strain_score), updated_at = datetime('now') WHERE id = ?")
-              .run(sleepTotalSec, sleepPerfPct, recoveryScore, strainScore, exists.id);
+            db.prepare("UPDATE daily_metrics SET sleep_total_sec = COALESCE(?, sleep_total_sec), sleep_perf_pct = COALESCE(?, sleep_perf_pct), sleep_consistency_pct = COALESCE(?, sleep_consistency_pct), recovery_score = COALESCE(?, recovery_score), strain_score = COALESCE(?, strain_score), updated_at = datetime('now') WHERE id = ?")
+              .run(sleepTotalSec, sleepPerfPct, sleepConsistencyPct, recoveryScore, strainScore, exists.id);
           } else {
-            db.prepare('INSERT INTO daily_metrics (member_id, date, sleep_total_sec, sleep_perf_pct, recovery_score, strain_score) VALUES (?, ?, ?, ?, ?, ?)')
-              .run(m.id, todayStr, sleepTotalSec, sleepPerfPct, recoveryScore, strainScore);
+            db.prepare('INSERT INTO daily_metrics (member_id, date, sleep_total_sec, sleep_perf_pct, sleep_consistency_pct, recovery_score, strain_score) VALUES (?, ?, ?, ?, ?, ?, ?)')
+              .run(m.id, todayStr, sleepTotalSec, sleepPerfPct, sleepConsistencyPct, recoveryScore, strainScore);
           }
         } catch (err) {
           console.error(`Failed to update metrics for member ${m.id}`, err);
@@ -777,13 +786,14 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
           if (cached) {
             sleepTotalSec = cached.sleep_total_sec ?? null;
             sleepPerfPct = cached.sleep_perf_pct ?? null;
+            sleepConsistencyPct = (cached as any).sleep_consistency_pct ?? null;
             recoveryScore = cached.recovery_score ?? null;
             strainScore = cached.strain_score ?? null;
           }
         }
       }
 
-      if (typeof sleepPerfPct === 'number') sleepBoard.push({ name: m.display_name, value: sleepPerfPct, seconds: typeof sleepTotalSec === 'number' ? sleepTotalSec : undefined, avatar: m.avatar_url });
+      if (typeof sleepPerfPct === 'number') sleepBoard.push({ name: m.display_name, value: sleepPerfPct, seconds: typeof sleepTotalSec === 'number' ? sleepTotalSec : undefined, consistency: typeof sleepConsistencyPct === 'number' ? sleepConsistencyPct : undefined, avatar: m.avatar_url });
       if (typeof recoveryScore === 'number') recoveryBoard.push({ name: m.display_name, value: recoveryScore, avatar: m.avatar_url });
       if (typeof strainScore === 'number') strainBoard.push({ name: m.display_name, value: strainScore, avatar: m.avatar_url });
     }

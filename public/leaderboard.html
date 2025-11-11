@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Whoop Gym Leaderboard</title>
+    <title>Heroes Fitness Leaderboard</title>
     <link rel="stylesheet" href="styles.css">
     <style>
-        .boards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 24px; }
+        .boards { display: grid; grid-template-columns: 180px repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 24px; }
         .board { background: #111; border-radius: 8px; padding: 16px; }
         .board h3 { margin-top: 0; }
         .entry { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
@@ -14,6 +14,11 @@
         .name { display: flex; align-items: center; gap: 8px; }
         .avatar { width: 24px; height: 24px; border-radius: 50%; background: #222; object-fit: cover; }
         .muted { opacity: 0.7; font-size: 12px; }
+        header.header h1 { font-size: 36px; }
+        #board-date { font-size: 16px; color: #ddd; }
+        .actions { margin: 12px 0; display: flex; gap: 8px; }
+        .btn { background: #222; color: #fff; padding: 8px 12px; border-radius: 6px; border: 1px solid #333; cursor: pointer; }
+        .btn:hover { background: #2a2a2a; }
     </style>
     <script type="module" src="../dist-public/ui.js"></script>
     <script type="module" src="../dist-public/leaderboard.js"></script>
@@ -28,20 +33,27 @@
     <div class="container">
         <header class="header">
             <div class="logo">
-                <h1>WHOOP</h1>
-                <span>Gym Leaderboard</span>
+                <h1>Heroes Fitness</h1>
+                <span>Leaderboard</span>
             </div>
         </header>
         <main class="main-content">
             <section>
                 <div class="muted" id="board-date"></div>
+                <div class="actions">
+                    <button id="refresh-strain" class="btn">Refresh Strain</button>
+                </div>
                 <div class="boards">
                     <div class="board">
-                        <h3>😴 Sleep (sec)</h3>
+                        <h3>👤 Name</h3>
+                        <div id="name-list"></div>
+                    </div>
+                    <div class="board">
+                        <h3>😴 Sleep</h3>
                         <div id="sleep-list"></div>
                     </div>
                     <div class="board">
-                        <h3>🛡️ Recovery</h3>
+                        <h3>🧘 Recovery</h3>
                         <div id="recovery-list"></div>
                     </div>
                     <div class="board">
@@ -52,7 +64,7 @@
             </section>
         </main>
         <footer class="footer">
-            <p>&copy; 2025 Whoop Gym Leaderboard.</p>
+            <p>&copy; 2025 Heroes Fitness x WHOOP — powered by WHOOP</p>
             <p class="muted">Auto-refreshes every 60 seconds.</p>
         </footer>
     </div>

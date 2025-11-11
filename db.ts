@@ -40,6 +40,10 @@ function runMigrations(db: Database.Database): void {
   if (!hasSleepPerf) {
     db.exec(`ALTER TABLE daily_metrics ADD COLUMN sleep_perf_pct REAL;`);
   }
+  const hasSleepConsistency = cols.some(c => c.name === 'sleep_consistency_pct');
+  if (!hasSleepConsistency) {
+    db.exec(`ALTER TABLE daily_metrics ADD COLUMN sleep_consistency_pct REAL;`);
+  }
 }
 
 export function getDb(): Database.Database {
