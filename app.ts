@@ -748,12 +748,37 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
           // Recovery (hourly): recovery score
           if (needHourlyFetch) {
             try {
+              // Primary: list endpoint for today
               const recResp: any = await makeWhoopApiRequest(`/v2/recovery?start=${startISO}&end=${endISO}&limit=1`, accessToken);
               const r = (recResp?.records && recResp.records[0]) || (Array.isArray(recResp) ? recResp[0] : recResp);
               const score = Number(r?.score ?? r?.recovery_score ?? r?.recovery?.score);
               recoveryScore = Number.isFinite(score) ? score : null;
-            } catch (_) {
-              // ignore
+            } catch {
+              // ignore and try to derive from cycle below if available
+            }
+            // If still null, bind recovery to today's cycle explicitly
+            if (recoveryScore == null) {
+              try {
+                const cycResp: any = await makeWhoopApiRequest(`/v2/cycle?start=${startISO}&end=${endISO}&limit=1`, accessToken);
+                const c = (cycResp?.records && cycResp.records[0]) || (Array.isArray(cycResp) ? cycResp[0] : cycResp);
+                if (c) {
+                  // Prefer score on the cycle if present
+                  const recFromCycle = Number(c?.score?.recovery_score ?? c?.recovery_score ?? c?.recovery?.score);
+                  if (Number.isFinite(recFromCycle)) {
+                    recoveryScore = recFromCycle;
+                  } else {
+                    // Fallback endpoint: /cycle/{id}/recovery
+                    const cycleId = c?.id ?? c?.cycle_id ?? c?.cycleId;
+                    if (cycleId != null) {
+                      const recObj: any = await makeWhoopApiRequest(`/v2/cycle/${cycleId}/recovery`, accessToken);
+                      const score2 = Number(recObj?.score ?? recObj?.recovery_score ?? recObj?.recovery?.score);
+                      if (Number.isFinite(score2)) recoveryScore = score2;
+                    }
+                  }
+                }
+              } catch {
+                // ignore
+              }
             }
           } else if (cached) {
             recoveryScore = cached.recovery_score ?? null;
@@ -766,6 +791,25 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
               const c = (cycResp?.records && cycResp.records[0]) || (Array.isArray(cycResp) ? cycResp[0] : cycResp);
               const strain = Number(c?.score?.strain ?? c?.strain ?? c?.score_strain ?? c?.cycle?.strain);
               strainScore = Number.isFinite(strain) ? strain : null;
+              // Try to derive recovery from cycle if not set
+              if (recoveryScore == null && c) {
+                const recFromCycle = Number(c?.score?.recovery_score ?? c?.recovery_score ?? c?.recovery?.score);
+                if (Number.isFinite(recFromCycle)) {
+                  recoveryScore = recFromCycle;
+                } else {
+                  // Fallback: fetch specific cycle recovery
+                  const cycleId = c?.id ?? c?.cycle_id ?? c?.cycleId;
+                  if (cycleId != null) {
+                    try {
+                      const recObj: any = await makeWhoopApiRequest(`/v2/cycle/${cycleId}/recovery`, accessToken);
+                      const score2 = Number(recObj?.score ?? recObj?.recovery_score ?? recObj?.recovery?.score);
+                      if (Number.isFinite(score2)) recoveryScore = score2;
+                    } catch {
+                      // ignore
+                    }
+                  }
+                }
+              }
             } catch (_) {
               // ignore
             }

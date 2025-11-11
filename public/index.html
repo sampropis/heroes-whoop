@@ -11,14 +11,11 @@
         <header class="header">
             <div class="logo">
                 <h1>Heroes Fitness x WHOOP</h1>
-                <span>Simple leaderboard</span>
             </div>
         </header>
         
         <main class="main-content">
             <section class="hero" style="text-align:center">
-                <h2>Welcome</h2>
-                <p>Choose an option below.</p>
                 <div class="cta-section">
                     <a href="/leaderboard" class="cta-button">View Leaderboard</a>
                     <a href="/join" class="cta-button" style="margin-left:12px;">Join Leaderboard</a>
@@ -30,17 +27,26 @@
         </main>
         
         <footer class="footer">
-            <p>&copy; 2025 Heroes Fitness x WHOOP — powered by WHOOP</p>
-            <p>
-                <a href="https://developer.whoop.com" target="_blank">Developer Docs</a> |
-                <a href="https://www.whoop.com" target="_blank">WHOOP.com</a> |
-                <a href="/setup">Setup Guide</a> |
-                <a href="/debug">Debug Tools</a>
-            </p>
+            <div class="footer-inner" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <div>
+                    <p>&copy; 2025 — data by WHOOP</p>
+                    <p class="muted">Auto-refreshes every 60 seconds.</p>
+                </div>
+                <div id="board-date" class="muted"></div>
+            </div>
         </footer>
     </div>
     
     <script type="module" src="../dist-public/auth.js"></script>
     <script type="module" src="../dist-public/ui.js"></script>
+    <script>
+        // Set date like the leaderboard footer
+        (function(){
+          var d = new Date();
+          var iso = d.toISOString().slice(0,10);
+          var el = document.getElementById('board-date');
+          if (el) el.textContent = 'Date: ' + iso;
+        })();
+    </script>
 </body>
 </html> 
