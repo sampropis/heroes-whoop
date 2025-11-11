@@ -688,9 +688,9 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
           // Update stored refresh token if rotated
           if (tokenData.refresh_token && tokenData.refresh_token !== refreshToken) {
             const enc = encryptSecret(tokenData.refresh_token);
-            db.prepare('UPDATE members SET refresh_token_enc = ?, last_refreshed_at = datetime("now") WHERE id = ?').run(enc, m.id);
+            db.prepare("UPDATE members SET refresh_token_enc = ?, last_refreshed_at = datetime('now') WHERE id = ?").run(enc, m.id);
           } else {
-            db.prepare('UPDATE members SET last_refreshed_at = datetime("now") WHERE id = ?').run(m.id);
+            db.prepare("UPDATE members SET last_refreshed_at = datetime('now') WHERE id = ?").run(m.id);
           }
 
           // Sleep (hourly): performance % and total slept seconds
@@ -765,7 +765,7 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
             .prepare('SELECT id FROM daily_metrics WHERE member_id = ? AND date = ?')
             .get(m.id, todayStr) as { id?: number } | undefined;
           if (exists?.id) {
-            db.prepare('UPDATE daily_metrics SET sleep_total_sec = COALESCE(?, sleep_total_sec), sleep_perf_pct = COALESCE(?, sleep_perf_pct), recovery_score = COALESCE(?, recovery_score), strain_score = COALESCE(?, strain_score), updated_at = datetime("now") WHERE id = ?')
+            db.prepare("UPDATE daily_metrics SET sleep_total_sec = COALESCE(?, sleep_total_sec), sleep_perf_pct = COALESCE(?, sleep_perf_pct), recovery_score = COALESCE(?, recovery_score), strain_score = COALESCE(?, strain_score), updated_at = datetime('now') WHERE id = ?")
               .run(sleepTotalSec, sleepPerfPct, recoveryScore, strainScore, exists.id);
           } else {
             db.prepare('INSERT INTO daily_metrics (member_id, date, sleep_total_sec, sleep_perf_pct, recovery_score, strain_score) VALUES (?, ?, ?, ?, ?, ?)')
