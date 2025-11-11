@@ -13,13 +13,27 @@ function renderList(containerId: string, items: Array<{ name: string; value: num
         el.innerHTML = '<div class="muted">No data</div>';
         return;
     }
+    const toInitials = (name?: string) => {
+        if (!name) return '';
+        const parts = name.trim().split(/\s+/).slice(0, 2);
+        return parts.map(p => p.charAt(0)).join('').toUpperCase();
+    };
+    const colorFromName = (name?: string) => {
+        if (!name) return '#555';
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        const hue = Math.abs(hash) % 360;
+        return `hsl(${hue}, 70%, 45%)`;
+    };
     items.forEach((it, idx) => {
         const row = document.createElement('div');
         row.className = 'entry';
         row.innerHTML = `
             <div class="name">
                 <span style="opacity:0.7;width:18px;display:inline-block;">${idx + 1}</span>
-                ${it.avatar ? `<img class="avatar" src="${it.avatar}" alt="">` : `<div class="avatar"></div>`}
+                ${it.avatar
+                    ? `<img class="avatar" src="${it.avatar}" alt="">`
+                    : `<div class="avatar avatar-initials" style="background:${colorFromName(it.name)}">${toInitials(it.name)}</div>`}
                 <span>${it.name}</span>
             </div>
             <div>${it._label ? it._label : format(it.value)}</div>
@@ -56,23 +70,19 @@ async function refresh(force?: string) {
         const data = await fetchLeaderboard(force);
         const dateEl = document.getElementById('board-date');
         if (dateEl) dateEl.textContent = `Date: ${data.date}`;
-        // Build name order based on strain; fallback to sleep, then recovery
         const strain = Array.isArray(data.strain) ? data.strain : [];
         const sleep = Array.isArray(data.sleep) ? data.sleep : [];
         const recovery = Array.isArray(data.recovery) ? data.recovery : [];
-        const nameOrder = (strain.length ? strain : (sleep.length ? sleep : recovery)).map((x: any) => ({ name: x.name, avatar: x.avatar }));
-        renderNames('name-list', nameOrder);
 
         // Sleep: performance % and consistency %
         const sleepItems = sleep.map((it: any) => {
             const perf = Math.round(it.value);
-            const cons = typeof it.consistency === 'number' ? Math.round(it.consistency) : undefined;
-            return { ...it, _label: cons !== undefined ? `Perf ${perf}% | Cons ${cons}%` : `Perf ${perf}%` };
+            return { ...it, _label: `${perf}%` };
         });
         renderList('sleep-list', sleepItems, (v: any) => typeof v === 'string' ? v : String(v));
 
-        // Recovery: show as percentage, do not add decimals (display integer)
-        renderList('recovery-list', recovery, (v) => `${Math.round(v)}%`);
+        // Recovery: show as percentage without rounding (keep one decimal if present)
+        renderList('recovery-list', recovery, (v) => `${Number.isInteger(v) ? v : Number(v).toFixed(1)}%`);
         // Strain: nearest tenth
         renderList('strain-list', strain, (v) => Number(v).toFixed(1));
     } catch (e) {
@@ -87,6 +97,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btn) {
         btn.addEventListener('click', () => {
             refresh('strain');
+        });
+    }
+    const themeBtn = document.getElementById('toggle-theme');
+    const applyTheme = (t: string) => {
+        if (t === 'light') document.body.classList.add('light');
+        else document.body.classList.remove('light');
+    };
+    const saved = localStorage.getItem('leaderboard_theme') || 'dark';
+    applyTheme(saved);
+    if (themeBtn) {
+        themeBtn.addEventListener('click', () => {
+            const next = document.body.classList.contains('light') ? 'dark' : 'light';
+            applyTheme(next);
+            localStorage.setItem('leaderboard_theme', next);
         });
     }
 });

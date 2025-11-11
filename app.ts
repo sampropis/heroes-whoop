@@ -441,7 +441,10 @@ app.get('/auth/callback', async (req: Request, res: Response) => {
       // Fetch profile to identify the user
       const profile: any = await makeWhoopApiRequest('/v2/user/profile/basic', access_token);
       const whoopUserId: string = String(profile?.user_id ?? profile?.id ?? '');
-      const displayName: string = String(profile?.name ?? profile?.full_name ?? 'Member');
+      const firstName: string | undefined = profile?.first_name || profile?.firstName;
+      const lastName: string | undefined = profile?.last_name || profile?.lastName;
+      const composedName = `${firstName ?? ''} ${lastName ?? ''}`.trim();
+      const displayName: string = composedName || String(profile?.name ?? profile?.full_name ?? 'Member');
       const avatarUrl: string | undefined = profile?.avatar_url || profile?.profile_picture_url;
       if (!whoopUserId) {
         return res.status(500).send('Failed to retrieve WHOOP user profile.');
