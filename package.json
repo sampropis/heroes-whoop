@@ -1,7 +1,7 @@
 {
-  "name": "whoop-developer-api-test-site",
+  "name": "whoop-gym-leaderboard",
   "version": "1.0.0",
-  "description": "Web app that utilizes the WHOOP Developer API with OAuth flow and cycle data display",
+  "description": "Gym display that shows WHOOP leaderboards (sleep, recovery, strain) with QR self-enrollment.",
   "main": "app.js",
   "scripts": {
     "start": "NODE_ENV=production npm run build && NODE_ENV=production node dist/app.js",
@@ -15,15 +15,18 @@
   },
   "keywords": [
     "whoop",
-    "api",
+    "leaderboard",
+    "gym",
     "oauth",
-    "health",
-    "fitness"
+    "sleep",
+    "recovery",
+    "strain"
   ],
   "author": "",
   "license": "MIT",
   "dependencies": {
     "axios": "^1.6.0",
+    "better-sqlite3": "^9.6.0",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
     "dotenv": "^16.3.1",

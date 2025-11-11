@@ -1,0 +1,5 @@
+/api/* https://<render-app>.onrender.com/api/:splat 200
+/auth/* https://<render-app>.onrender.com/auth/:splat 200
+/debug/* https://<render-app>.onrender.com/debug/:splat 200
+
+

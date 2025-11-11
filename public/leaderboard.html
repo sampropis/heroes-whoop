@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whoop Gym Leaderboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .boards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 24px; }
+        .board { background: #111; border-radius: 8px; padding: 16px; }
+        .board h3 { margin-top: 0; }
+        .entry { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .entry:last-child { border-bottom: none; }
+        .name { display: flex; align-items: center; gap: 8px; }
+        .avatar { width: 24px; height: 24px; border-radius: 50%; background: #222; object-fit: cover; }
+        .muted { opacity: 0.7; font-size: 12px; }
+    </style>
+    <script type="module" src="../dist-public/ui.js"></script>
+    <script type="module" src="../dist-public/leaderboard.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Ensure the page stays awake on some kiosk setups
+            setInterval(() => {}, 100000);
+        });
+    </script>
+  </head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <h1>WHOOP</h1>
+                <span>Gym Leaderboard</span>
+            </div>
+        </header>
+        <main class="main-content">
+            <section>
+                <div class="muted" id="board-date"></div>
+                <div class="boards">
+                    <div class="board">
+                        <h3>😴 Sleep (sec)</h3>
+                        <div id="sleep-list"></div>
+                    </div>
+                    <div class="board">
+                        <h3>🛡️ Recovery</h3>
+                        <div id="recovery-list"></div>
+                    </div>
+                    <div class="board">
+                        <h3>🔥 Strain</h3>
+                        <div id="strain-list"></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+        <footer class="footer">
+            <p>&copy; 2025 Whoop Gym Leaderboard.</p>
+            <p class="muted">Auto-refreshes every 60 seconds.</p>
+        </footer>
+    </div>
+</body>
+</html>
+
+

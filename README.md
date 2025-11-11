@@ -1,11 +1,31 @@
-# WHOOP Developer API Test Site
+# Whoop Gym Leaderboard
 
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](https://github.com/WhoopInc/external-developer-api-test-site)
 [![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/WhoopInc/external-developer-api-test-site)
 [![Node.js](https://img.shields.io/badge/node.js-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9.2-blue)](https://www.typescriptlang.org/)
 
-A comprehensive, production-ready web application demonstrating integration with the WHOOP Developer API v2. This test site provides a complete reference implementation featuring secure OAuth 2.0 authentication, real-time data visualization, automatic token management, and a modern responsive interface for exploring WHOOP health and fitness data.
+A gym-focused remix of the WHOOP Developer API app. This project powers a wall/display that shows simple leaderboards for Sleep, Recovery, and Strain. Members self-enroll by scanning a QR code and authenticating with WHOOP. The server securely stores encrypted refresh tokens and aggregates metrics for the display.
+
+Note: Much of the original test-site documentation remains below for reference; core logic is reused.
+
+## Deployment (Render backend + Netlify frontend)
+
+1. Create GitHub repo and push this code.
+2. Render (Web Service):
+   - Build: `npm ci && npm run build`
+   - Start: `node dist/app.js`
+   - Env: `WHOOP_CLIENT_ID`, `WHOOP_CLIENT_SECRET`, `WHOOP_REDIRECT_URI=https://<render>.onrender.com/auth/callback`, `SESSION_SECRET`, `ENCRYPTION_KEY` (base64 32 bytes), `ADMIN_SECRET`, `SECURE_COOKIES=true`, `DB_PATH=/opt/render/project/src/storage/app.sqlite`
+   - Add a Disk at `/opt/render/project/src/storage`
+3. Netlify (static):
+   - Build: `npm run build:frontend`
+   - Publish: `public`
+   - Add `public/_redirects` pointing to your Render URL
+4. WHOOP Developer settings:
+   - Redirect URI must match the Render callback URL
+5. Test:
+   - Visit `/leaderboard`
+   - Open `/join` to enroll and verify appearance on the board
 
 ## 🚀 Features
 

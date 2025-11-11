@@ -8,6 +8,8 @@ import morgan from 'morgan';
 import path from 'path';
 import { getPublicDir, getDistPublicDir } from './paths';
 import dotenv from 'dotenv';
+import { getDb } from './db';
+import { encryptSecret, decryptSecret } from './crypto';
 
 const envFile =
   process.env.NODE_ENV === 'production'
@@ -208,6 +210,10 @@ function generateState(): string {
   return crypto.randomBytes(32).toString('hex');
 }
 
+function buildStateWithPurpose(baseState: string, purpose: 'personal' | 'enroll'): string {
+  return `${baseState}|${purpose}`;
+}
+
 // Helper function to refresh access token
 async function refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
   try {
@@ -279,6 +285,32 @@ app.get('/', (req: Request, res: Response) => {
   res.sendFile(path.join(getPublicDir(__dirname), 'index.html'));
 });
 
+// Join (enrollment) route - starts OAuth with enroll purpose
+app.get('/join', (req: Request, res: Response) => {
+  const state = generateState();
+  req.session.oauthState = state;
+
+  const cleanScopes = config.scopes
+    .split(' ')
+    .filter(scope => scope.trim() !== '')
+    .join(' ');
+
+  const authUrl = new URL(config.authorizationUrl!);
+  authUrl.searchParams.append('client_id', config.clientId!);
+  authUrl.searchParams.append('redirect_uri', config.redirectUri!);
+  authUrl.searchParams.append('response_type', 'code');
+  authUrl.searchParams.append('scope', cleanScopes);
+  authUrl.searchParams.append('state', buildStateWithPurpose(state, 'enroll'));
+
+  req.session.save((err) => {
+    if (err) {
+      console.error('Session save error:', err);
+      return res.status(500).json({ error: 'Failed to save session' });
+    }
+    res.redirect(authUrl.toString());
+  });
+});
+
 // Start OAuth flow
 app.get('/auth/login', (req: Request, res: Response) => {
   const state = generateState();
@@ -307,7 +339,7 @@ app.get('/auth/login', (req: Request, res: Response) => {
   authUrl.searchParams.append('redirect_uri', config.redirectUri!);
   authUrl.searchParams.append('response_type', 'code');
   authUrl.searchParams.append('scope', cleanScopes);
-  authUrl.searchParams.append('state', state);
+  authUrl.searchParams.append('state', buildStateWithPurpose(state, 'personal'));
 
   console.log('Full authorization URL:', authUrl.toString());
   
@@ -342,7 +374,9 @@ app.get('/auth/callback', async (req: Request, res: Response) => {
   }
 
   // Verify state parameter
-  if (state !== req.session.oauthState) {
+  const stateStr = String(state || '');
+  const [returnedState, purpose = 'personal'] = stateStr.split('|');
+  if (returnedState !== req.session.oauthState) {
     console.error('State mismatch. Expected:', req.session.oauthState, 'Received:', state);
     return res.status(400).json({ error: 'Invalid state parameter' });
   }
@@ -391,12 +425,46 @@ app.get('/auth/callback', async (req: Request, res: Response) => {
     // Clean up OAuth state
     delete req.session.oauthState;
 
-    console.log(`OAuth flow completed successfully, sending tokens to client`);
+    console.log(`OAuth flow completed successfully. Purpose: ${purpose}`);
     console.log(`Access token: ${access_token ? 'SET' : 'NOT SET'}`);
     console.log(`Refresh token: ${refresh_token ? 'SET' : 'NOT SET'}`);
     console.log(`Expires in: ${expires_in} seconds`);
 
-    // Instead of storing in session, send tokens to client for localStorage storage
+    if (purpose === 'enroll') {
+      if (!refresh_token) {
+        return res.status(400).send('Enrollment requires offline access (refresh token). Please contact the gym admin.');
+      }
+      // Fetch profile to identify the user
+      const profile: any = await makeWhoopApiRequest('/v2/user/profile/basic', access_token);
+      const whoopUserId: string = String(profile?.user_id ?? profile?.id ?? '');
+      const displayName: string = String(profile?.name ?? profile?.full_name ?? 'Member');
+      const avatarUrl: string | undefined = profile?.avatar_url || profile?.profile_picture_url;
+      if (!whoopUserId) {
+        return res.status(500).send('Failed to retrieve WHOOP user profile.');
+      }
+
+      const db = getDb();
+      const enc = encryptSecret(refresh_token);
+
+      // Upsert member by whoop_user_id
+      const existing = db
+        .prepare('SELECT id FROM members WHERE whoop_user_id = ?')
+        .get(whoopUserId) as { id?: number } | undefined;
+
+      if (existing?.id) {
+        db.prepare('UPDATE members SET display_name = ?, avatar_url = ?, refresh_token_enc = ? WHERE id = ?')
+          .run(displayName, avatarUrl || null, enc, existing.id);
+      } else {
+        db.prepare('INSERT INTO members (whoop_user_id, display_name, avatar_url, refresh_token_enc) VALUES (?, ?, ?, ?)')
+          .run(whoopUserId, displayName, avatarUrl || null, enc);
+      }
+
+      // Redirect to thanks page
+      res.redirect('/thanks');
+      return;
+    }
+
+    // Default: personal mode, send tokens to client for localStorage storage
     res.send(`
       <html>
         <head>
@@ -412,44 +480,21 @@ app.get('/auth/callback', async (req: Request, res: Response) => {
           <p class="loading">Saving credentials and redirecting...</p>
           <script>
             try {
-              // Validate tokens before storing
               const accessToken = '${access_token}';
               const refreshToken = '${refresh_token}';
               const expiresIn = ${expires_in || 3600};
-
-              console.log('Storing tokens:', {
-                accessToken: accessToken ? 'SET' : 'NOT SET',
-                refreshToken: refreshToken ? 'SET' : 'NOT SET',
-                expiresIn: expiresIn
-              });
-
               if (!accessToken || accessToken === 'undefined') {
                 throw new Error('Invalid access token received');
               }
-
-              // Save tokens to localStorage
               localStorage.setItem('whoop_access_token', accessToken);
-
               if (refreshToken && refreshToken !== 'undefined') {
                 localStorage.setItem('whoop_refresh_token', refreshToken);
-              } else {
-                console.warn('No valid refresh token received - user will need to re-authenticate when token expires');
               }
-
               localStorage.setItem('whoop_token_expiry', '${Date.now() + ((expires_in || 3600) * 1000)}');
-
-              console.log('Tokens saved to localStorage successfully');
-
-              // Redirect to dashboard
-              setTimeout(() => {
-                window.location.href = '/dashboard';
-              }, 1000);
+              setTimeout(() => { window.location.href = '/dashboard'; }, 600);
             } catch (error) {
-              console.error('Failed to save tokens:', error);
-              alert('Authentication failed: ' + (error instanceof Error ? error.message : String(error)) + '. Redirecting to login.');
-              setTimeout(() => {
-                window.location.href = '/';
-              }, 2000);
+              alert('Authentication failed. Redirecting to login.');
+              setTimeout(() => { window.location.href = '/'; }, 1200);
             }
           </script>
         </body>
@@ -505,6 +550,17 @@ app.get('/debug', (req: Request, res: Response) => {
 // Setup guide route
 app.get('/setup', (req: Request, res: Response) => {
   res.sendFile(path.join(getPublicDir(__dirname), 'whoop-setup.html'));
+});
+
+// Thanks route
+app.get('/thanks', (req: Request, res: Response) => {
+  const thanksPath = path.join(getPublicDir(__dirname), 'thanks.html');
+  res.sendFile(thanksPath);
+});
+
+// Leaderboard route (public display)
+app.get('/leaderboard', (req: Request, res: Response) => {
+  res.sendFile(path.join(getPublicDir(__dirname), 'leaderboard.html'));
 });
 
 
@@ -572,6 +628,179 @@ app.post('/auth/logout', (req: Request, res: Response) => {
 });
 
 // API Routes
+function getTodayRange(): { start: Date; end: Date } {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  return { start, end };
+}
+
+// Leaderboard aggregation (server-side)
+app.get('/api/leaderboard', async (req: Request, res: Response) => {
+  try {
+    const staleStrainMs = 5 * 60 * 1000;   // 5 minutes
+    const staleHourlyMs = 60 * 60 * 1000;  // 1 hour
+    const db = getDb();
+    const members = db.prepare('SELECT id, whoop_user_id, display_name, avatar_url, refresh_token_enc FROM members').all() as Array<{
+      id: number; whoop_user_id: string; display_name: string; avatar_url?: string; refresh_token_enc: string;
+    }>;
+    const { start, end } = getTodayRange();
+    const startISO = start.toISOString();
+    const endISO = end.toISOString();
+    const todayStr = start.toISOString().slice(0, 10);
+
+    const sleepBoard: Array<{ name: string; value: number; seconds?: number; avatar?: string }> = [];
+    const recoveryBoard: Array<{ name: string; value: number; avatar?: string }> = [];
+    const strainBoard: Array<{ name: string; value: number; avatar?: string }> = [];
+
+    for (const m of members) {
+      // Check cache
+      const cached = db
+        .prepare('SELECT sleep_total_sec, sleep_perf_pct, recovery_score, strain_score, updated_at FROM daily_metrics WHERE member_id = ? AND date = ?')
+        .get(m.id, todayStr) as { sleep_total_sec?: number; sleep_perf_pct?: number; recovery_score?: number; strain_score?: number; updated_at?: string } | undefined;
+      const updated = cached?.updated_at ? new Date(cached.updated_at).getTime() : 0;
+      const ageMs = updated ? (Date.now() - updated) : Number.POSITIVE_INFINITY;
+
+      let sleepTotalSec: number | null = null;
+      let sleepPerfPct: number | null = null;
+      let recoveryScore: number | null = null;
+      let strainScore: number | null = null;
+
+      // Determine which metrics need refresh
+      const needStrainFetch = ageMs > staleStrainMs;
+      const needHourlyFetch = ageMs > staleHourlyMs;
+
+      if (!needStrainFetch && cached) {
+        // Use cache for all when fresh within 5 minutes
+        sleepTotalSec = cached.sleep_total_sec ?? null;
+        sleepPerfPct = cached.sleep_perf_pct ?? null;
+        recoveryScore = cached.recovery_score ?? null;
+        strainScore = cached.strain_score ?? null;
+      } else {
+        try {
+          const refreshToken = decryptSecret(m.refresh_token_enc);
+          const tokenData = await refreshAccessToken(refreshToken);
+          const accessToken = tokenData.access_token;
+          // Update stored refresh token if rotated
+          if (tokenData.refresh_token && tokenData.refresh_token !== refreshToken) {
+            const enc = encryptSecret(tokenData.refresh_token);
+            db.prepare('UPDATE members SET refresh_token_enc = ?, last_refreshed_at = datetime("now") WHERE id = ?').run(enc, m.id);
+          } else {
+            db.prepare('UPDATE members SET last_refreshed_at = datetime("now") WHERE id = ?').run(m.id);
+          }
+
+          // Sleep (hourly): performance % and total slept seconds
+          if (needHourlyFetch) {
+            try {
+              const sleepResp: any = await makeWhoopApiRequest(`/v2/activity/sleep?start=${startISO}&end=${endISO}&limit=25`, accessToken);
+              const records: any[] = (sleepResp?.records as any[]) || (Array.isArray(sleepResp) ? sleepResp : []);
+              let totalMinutes = 0;
+              let bestPerf: number | null = null;
+              for (const r of records) {
+                const score = r?.score || r?.sleep?.score;
+                const perf = Number(score?.sleep_performance_percentage);
+                if (Number.isFinite(perf)) {
+                  bestPerf = Math.max(bestPerf ?? perf, perf);
+                }
+                // Prefer stage minutes sum (deep + rem + light)
+                const deep = Number(score?.slow_wave_sleep_minutes) || 0;
+                const rem = Number(score?.rem_sleep_minutes) || 0;
+                const light = Number(score?.light_sleep_minutes) || 0;
+                let minutes = 0;
+                if (deep + rem + light > 0) {
+                  minutes = deep + rem + light;
+                } else if (typeof score?.in_bed_duration_minutes === 'number') {
+                  minutes = Number(score.in_bed_duration_minutes) - (Number(score.awake_time_minutes) || 0);
+                } else if (r?.start && r?.end) {
+                  const startTs = new Date(r.start).getTime();
+                  const endTs = new Date(r.end).getTime();
+                  minutes = Math.max(0, Math.round((endTs - startTs) / 60000));
+                }
+                totalMinutes += Math.max(0, minutes);
+              }
+              sleepTotalSec = totalMinutes > 0 ? totalMinutes * 60 : null;
+              sleepPerfPct = bestPerf !== null ? Math.round(bestPerf) : null;
+            } catch (_) {
+              // ignore
+            }
+          } else if (cached) {
+            sleepTotalSec = cached.sleep_total_sec ?? null;
+            sleepPerfPct = cached.sleep_perf_pct ?? null;
+          }
+
+          // Recovery (hourly): recovery score
+          if (needHourlyFetch) {
+            try {
+              const recResp: any = await makeWhoopApiRequest(`/v2/recovery?start=${startISO}&end=${endISO}&limit=1`, accessToken);
+              const r = (recResp?.records && recResp.records[0]) || (Array.isArray(recResp) ? recResp[0] : recResp);
+              const score = Number(r?.score ?? r?.recovery_score ?? r?.recovery?.score);
+              recoveryScore = Number.isFinite(score) ? score : null;
+            } catch (_) {
+              // ignore
+            }
+          } else if (cached) {
+            recoveryScore = cached.recovery_score ?? null;
+          }
+
+          // Strain (5 min): cycle score.strain
+          if (needStrainFetch) {
+            try {
+              const cycResp: any = await makeWhoopApiRequest(`/v2/cycle?start=${startISO}&end=${endISO}&limit=1`, accessToken);
+              const c = (cycResp?.records && cycResp.records[0]) || (Array.isArray(cycResp) ? cycResp[0] : cycResp);
+              const strain = Number(c?.score?.strain ?? c?.strain ?? c?.score_strain ?? c?.cycle?.strain);
+              strainScore = Number.isFinite(strain) ? strain : null;
+            } catch (_) {
+              // ignore
+            }
+          } else if (cached) {
+            strainScore = cached.strain_score ?? null;
+          }
+
+          // Upsert daily_metrics
+          const exists = db
+            .prepare('SELECT id FROM daily_metrics WHERE member_id = ? AND date = ?')
+            .get(m.id, todayStr) as { id?: number } | undefined;
+          if (exists?.id) {
+            db.prepare('UPDATE daily_metrics SET sleep_total_sec = COALESCE(?, sleep_total_sec), sleep_perf_pct = COALESCE(?, sleep_perf_pct), recovery_score = COALESCE(?, recovery_score), strain_score = COALESCE(?, strain_score), updated_at = datetime("now") WHERE id = ?')
+              .run(sleepTotalSec, sleepPerfPct, recoveryScore, strainScore, exists.id);
+          } else {
+            db.prepare('INSERT INTO daily_metrics (member_id, date, sleep_total_sec, sleep_perf_pct, recovery_score, strain_score) VALUES (?, ?, ?, ?, ?, ?)')
+              .run(m.id, todayStr, sleepTotalSec, sleepPerfPct, recoveryScore, strainScore);
+          }
+        } catch (err) {
+          console.error(`Failed to update metrics for member ${m.id}`, err);
+          // Fallback to cached values if available
+          if (cached) {
+            sleepTotalSec = cached.sleep_total_sec ?? null;
+            sleepPerfPct = cached.sleep_perf_pct ?? null;
+            recoveryScore = cached.recovery_score ?? null;
+            strainScore = cached.strain_score ?? null;
+          }
+        }
+      }
+
+      if (typeof sleepPerfPct === 'number') sleepBoard.push({ name: m.display_name, value: sleepPerfPct, seconds: typeof sleepTotalSec === 'number' ? sleepTotalSec : undefined, avatar: m.avatar_url });
+      if (typeof recoveryScore === 'number') recoveryBoard.push({ name: m.display_name, value: recoveryScore, avatar: m.avatar_url });
+      if (typeof strainScore === 'number') strainBoard.push({ name: m.display_name, value: strainScore, avatar: m.avatar_url });
+    }
+
+    // Sort desc
+    sleepBoard.sort((a, b) => b.value - a.value);
+    recoveryBoard.sort((a, b) => b.value - a.value);
+    strainBoard.sort((a, b) => b.value - a.value);
+
+    res.json({
+      sleep: sleepBoard,
+      recovery: recoveryBoard,
+      strain: strainBoard,
+      date: todayStr
+    });
+  } catch (error) {
+    console.error('Leaderboard aggregation failed', error);
+    res.status(500).json({ error: 'Failed to build leaderboard' });
+  }
+});
+
 // Get user profile
 app.get('/api/profile', ensureAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -894,6 +1123,31 @@ app.get('/auth/test/:scopes', (req: Request, res: Response) => {
 
   console.log('Test authorization URL:', authUrl.toString());
   res.redirect(authUrl.toString());
+});
+
+// Admin: remove member
+app.post('/api/admin/remove-member', async (req: Request, res: Response) => {
+  try {
+    const adminSecret = process.env.ADMIN_SECRET;
+    const provided = req.headers['x-admin-secret'] || req.query.admin_secret || (req.body && (req.body as any).admin_secret);
+    if (!adminSecret || String(provided) !== adminSecret) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const { whoop_user_id, member_id } = req.body || {};
+    if (!whoop_user_id && !member_id) {
+      return res.status(400).json({ error: 'Provide whoop_user_id or member_id' });
+    }
+    const db = getDb();
+    if (member_id) {
+      db.prepare('DELETE FROM members WHERE id = ?').run(member_id);
+    } else if (whoop_user_id) {
+      db.prepare('DELETE FROM members WHERE whoop_user_id = ?').run(String(whoop_user_id));
+    }
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('remove-member failed', e);
+    return res.status(500).json({ error: 'Failed to remove member' });
+  }
 });
 
 // Error handling middleware

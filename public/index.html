@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WHOOP Developer API Test Site</title>
+    <title>Whoop Gym Leaderboard</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -11,16 +11,15 @@
         <header class="header">
             <div class="logo">
                 <h1>WHOOP</h1>
-                <span>Developer API Test Site</span>
+                <span>Gym Leaderboard</span>
             </div>
         </header>
         
         <main class="main-content">
             <section class="hero">
-                <h2>Unlock Your Performance</h2>
+                <h2>See Today’s Gym Leaders</h2>
                 <p>
-                    Connect with the WHOOP Developer API to access comprehensive health and fitness data. 
-                    Monitor your recovery, track your strain, and optimize your performance with real-time insights.
+                    View top Sleep, Recovery, and Strain from members who joined the leaderboard. Scan and join to appear on the board.
                 </p>
                 
                 <div class="features">
@@ -43,18 +42,20 @@
                 </div>
                 
                 <div class="cta-section">
-                    <a href="/auth/login" class="cta-button">
-                        Connect Your WHOOP
-                    </a>
+                    <a href="/leaderboard" class="cta-button">View Leaderboard</a>
+                    <a href="/join" class="cta-button" style="margin-left:12px;">Join Leaderboard</a>
+                    <div style="margin-top:8px;">
+                        <a href="/auth/login" style="opacity:0.8;">Personal dashboard (legacy)</a>
+                    </div>
                     <p class="disclaimer">
-                        Secure OAuth integration with WHOOP's platform. Your data privacy is protected.
+                        Secure OAuth integration with WHOOP's platform. Your data privacy is protected. Joining displays your name and scores on the gym board.
                     </p>
                 </div>
             </section>
         </main>
         
         <footer class="footer">
-            <p>&copy; 2025 WHOOP Developer API Integration. Powered by WHOOP Platform.</p>
+            <p>&copy; 2025 Whoop Gym Leaderboard Remix. Powered by WHOOP Platform.</p>
             <p>
                 <a href="https://developer.whoop.com" target="_blank">Developer Docs</a> |
                 <a href="https://www.whoop.com" target="_blank">WHOOP.com</a> |
@@ -66,14 +67,5 @@
     
     <script type="module" src="../dist-public/auth.js"></script>
     <script type="module" src="../dist-public/ui.js"></script>
-    <script>
-        // Check if user is already authenticated and redirect to dashboard
-        document.addEventListener('DOMContentLoaded', () => {
-            if (whoopAuth.isAuthenticated()) {
-                console.log('User already authenticated, redirecting to dashboard...');
-                window.location.href = '/dashboard';
-            }
-        });
-    </script>
 </body>
 </html> 

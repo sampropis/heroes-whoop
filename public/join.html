@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Whoop Gym Leaderboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .center { text-align: center; margin-top: 60px; }
+        .join-url { font-size: 14px; opacity: 0.8; word-break: break-all; }
+        .qr-box { display: inline-block; background: #111; padding: 16px; border-radius: 8px; margin: 16px 0; }
+        .cta-button { display: inline-block; margin-top: 12px; }
+    </style>
+    <script>
+        function init() {
+            const url = window.location.origin + '/join';
+            const urlEl = document.getElementById('join-url');
+            if (urlEl) urlEl.textContent = url;
+            const link = document.getElementById('join-link');
+            if (link) link.href = url;
+        }
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+    <script type="module" src="../dist-public/ui.js"></script>
+    <script type="module" src="../dist-public/auth.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <h1>WHOOP</h1>
+                <span>Join Leaderboard</span>
+            </div>
+        </header>
+        <main class="main-content">
+            <section class="hero center">
+                <h2>Join the Gym Leaderboard</h2>
+                <p>Authenticate with WHOOP to appear on the Sleep, Recovery, and Strain boards.</p>
+                <div class="qr-box">
+                    <div class="join-url" id="join-url"></div>
+                </div>
+                <div>
+                    <a id="join-link" class="cta-button" href="/join">Authenticate with WHOOP</a>
+                </div>
+                <p class="disclaimer">By joining, you consent to displaying your name and scores on the gym display.</p>
+            </section>
+        </main>
+        <footer class="footer">
+            <p>&copy; 2025 Whoop Gym Leaderboard Remix.</p>
+        </footer>
+    </div>
+</body>
+</html>
+
+
