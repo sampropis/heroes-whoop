@@ -72,7 +72,7 @@ async function refresh(force?: string, silent?: boolean) {
         const data = await fetchLeaderboard(force);
         // Header date (EST)
         const headerDateEl = document.getElementById('header-date');
-        if (headerDateEl) headerDateEl.textContent = formatEstDate(new Date());
+        if (headerDateEl) headerDateEl.textContent = `Leaderboard for ${formatEstLongDate(new Date())}`;
         const strain = Array.isArray(data.strain) ? data.strain : [];
         const sleep = Array.isArray(data.sleep) ? data.sleep : [];
         const recovery = Array.isArray(data.recovery) ? data.recovery : [];
@@ -100,6 +100,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set header date on load (EST)
     const headerDateEl = document.getElementById('header-date');
     if (headerDateEl) headerDateEl.textContent = `Leaderboard for ${formatEstLongDate(new Date())}`;
+    // Immediate fetch so the page is populated right away
+    refresh('all');
+    // Then schedule background refreshes
     scheduleRefresh();
     const btn = document.getElementById('refresh-btn');
     if (btn) {
