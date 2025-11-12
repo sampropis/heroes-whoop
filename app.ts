@@ -889,13 +889,15 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
           const axiosError = err as AxiosError;
           const status = axiosError?.response?.status;
           const data: any = axiosError?.response?.data;
+          // Be conservative: only unlink on explicit invalid_grant or hard 401.
+          // Do NOT remove members on generic 400/invalid_request or transient errors.
           const isInvalidGrant =
-            status === 400 || status === 401 ||
-            (typeof data === 'object' && (data?.error === 'invalid_grant' || data?.error === 'invalid_request'));
+            status === 401 ||
+            (typeof data === 'object' && data?.error === 'invalid_grant');
           if (isInvalidGrant) {
             try {
               deleteMemberByWhoopUserId(db, m.whoop_user_id);
-              console.log(`Removed member ${m.whoop_user_id} due to invalid/revoked token`);
+              console.log(`Removed member ${m.whoop_user_id} due to invalid/revoked token (status=${status}, error=${data?.error})`);
             } catch (e) {
               console.error('Failed to remove member after token failure', e);
             }
