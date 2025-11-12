@@ -84,8 +84,16 @@ async function refresh(force?: string, silent?: boolean) {
         });
         renderList('sleep-list', sleepItems, (v: any) => typeof v === 'string' ? v : String(v));
 
-        // Recovery: show as percentage without rounding (keep one decimal if present)
-        renderList('recovery-list', recovery, (v) => `${Number.isInteger(v) ? v : Number(v).toFixed(1)}%`);
+        // Recovery: color-coded buckets (red 0-33, yellow 34-66, green 67-100)
+        const recoveryItems = recovery.map((it: any) => {
+            const n = Number(it.value);
+            const val = Math.round(n);
+            let cls = 'recovery-green';
+            if (n <= 33) cls = 'recovery-red';
+            else if (n <= 66) cls = 'recovery-yellow';
+            return { ...it, _label: `<span class="${cls}">${val}%</span>` };
+        });
+        renderList('recovery-list', recoveryItems, (v) => `${Math.round(Number(v))}%`);
         // Strain: nearest tenth
         renderList('strain-list', strain, (v) => Number(v).toFixed(1));
     } catch (e) {
