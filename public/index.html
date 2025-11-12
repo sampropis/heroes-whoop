@@ -7,14 +7,14 @@
     <link rel="stylesheet" href="styles.css">
     <style>
       header.header h1 { font-size: 36px; }
-      .header-date { font-size: 16px; color: #ddd; }
+      .header-date { font-size: 16px; color: #fff; }
       .btn { background: #222; color: #fff; padding: 6px 10px; border-radius: 6px; border: 1px solid #333; cursor: pointer; font-size: 12px; }
       .btn.btn-icon { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
       /* Light theme overrides */
       body.light { background: #f7f7f7; color: #111; }
       body.light .header { background: #f7f7f7 !important; border-bottom: 1px solid #e5e5e5; }
       body.light .header .logo h1 { color: #111; }
-      body.light .header .logo span { color: #111; }
+      body.light .header .logo span, body.light .header-date { color: #111; }
       body.light .btn { background: #eee; color: #111; border: 1px solid #d0d0d0; }
     </style>
 </head>
@@ -22,7 +22,7 @@
     <div class="container">
         <header class="header">
             <div class="logo">
-                <img src="/assets/heroes_fitness_banner.png" alt="Heroes Fitness" style="height:42px; display:block;">
+                <img src="/assets/heroes_fitness_banner.png" alt="Heroes Fitness" style="max-height:126px; height:auto; width:auto; display:block;">
                 <span id="header-date" class="header-date muted" style="margin-top:6px;"></span>
             </div>
         </header>
