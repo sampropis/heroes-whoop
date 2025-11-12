@@ -3,14 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Heroes Fitness x WHOOP</title>
+    <title>Heroes Fitness Leaderboard</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+      header.header h1 { font-size: 36px; }
+      .header-date { font-size: 16px; color: #ddd; }
+      .btn { background: #222; color: #fff; padding: 6px 10px; border-radius: 6px; border: 1px solid #333; cursor: pointer; font-size: 12px; }
+      .btn.btn-icon { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+      /* Light theme overrides */
+      body.light { background: #f7f7f7; color: #111; }
+      body.light .header { background: #f7f7f7 !important; border-bottom: 1px solid #e5e5e5; }
+      body.light .header .logo h1 { color: #111; }
+      body.light .header .logo span { color: #111; }
+      body.light .btn { background: #eee; color: #111; border: 1px solid #d0d0d0; }
+    </style>
 </head>
 <body>
     <div class="container">
         <header class="header">
             <div class="logo">
-                <h1>Heroes Fitness x WHOOP</h1>
+                <h1>Heroes Fitness Leaderboard</h1>
+                <span id="header-date" class="header-date muted"></span>
             </div>
         </header>
         
@@ -27,26 +40,49 @@
         </main>
         
         <footer class="footer">
-            <div class="footer-inner" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                <div>
-                    <p>&copy; 2025 — data by WHOOP</p>
-                    <p class="muted">Auto-refreshes every 60 seconds.</p>
-                </div>
-                <div id="board-date" class="muted"></div>
+          <div class="footer-inner" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <button id="toggle-theme" class="btn btn-icon" title="Light/Dark mode">🌙</button>
             </div>
+            <div>
+              <p>&copy; 2025 — data by WHOOP</p>
+            </div>
+          </div>
         </footer>
     </div>
     
     <script type="module" src="../dist-public/auth.js"></script>
     <script type="module" src="../dist-public/ui.js"></script>
     <script>
-        // Set date like the leaderboard footer
-        (function(){
-          var d = new Date();
-          var iso = d.toISOString().slice(0,10);
-          var el = document.getElementById('board-date');
-          if (el) el.textContent = 'Date: ' + iso;
-        })();
+      // Shared utilities for header date and theme toggle (EST)
+      function formatEstDate(d) {
+        const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' })
+          .formatToParts(d);
+        const y = parts.find(p => p.type === 'year')?.value;
+        const m = parts.find(p => p.type === 'month')?.value;
+        const day = parts.find(p => p.type === 'day')?.value;
+        return `${y}-${m}-${day}`;
+      }
+      function applyTheme(t) {
+        if (t === 'light') document.body.classList.add('light');
+        else document.body.classList.remove('light');
+        const icon = document.getElementById('toggle-theme');
+        if (icon) icon.textContent = document.body.classList.contains('light') ? '☀️' : '🌙';
+      }
+      document.addEventListener('DOMContentLoaded', function () {
+        var headerDateEl = document.getElementById('header-date');
+        if (headerDateEl) headerDateEl.textContent = formatEstDate(new Date());
+        const saved = localStorage.getItem('leaderboard_theme') || 'dark';
+        applyTheme(saved);
+        const themeBtn = document.getElementById('toggle-theme');
+        if (themeBtn) {
+          themeBtn.addEventListener('click', function () {
+            const next = document.body.classList.contains('light') ? 'dark' : 'light';
+            applyTheme(next);
+            localStorage.setItem('leaderboard_theme', next);
+          });
+        }
+      });
     </script>
 </body>
 </html> 

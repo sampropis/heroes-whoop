@@ -669,10 +669,21 @@ app.post('/auth/logout', (req: Request, res: Response) => {
 });
 
 // API Routes
+const APP_TIMEZONE = process.env.TIMEZONE || 'America/New_York';
 function getTodayRange(): { start: Date; end: Date } {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  // Compute midnight boundaries in the configured timezone, return as UTC Date objects
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: APP_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = fmt.formatToParts(new Date());
+  const y = Number(parts.find(p => p.type === 'year')?.value);
+  const m = Number(parts.find(p => p.type === 'month')?.value);
+  const d = Number(parts.find(p => p.type === 'day')?.value);
+  const start = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
+  const end = new Date(Date.UTC(y, m - 1, d + 1, 0, 0, 0));
   return { start, end };
 }
 
@@ -956,10 +967,7 @@ app.get('/api/profile', ensureAuthenticated, async (req: AuthenticatedRequest, r
 // Get today's cycle data
 app.get('/api/cycle/today', ensureAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    // Get today's date range
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    const { start: startOfDay, end: endOfDay } = getTodayRange();
 
     const cycles = await makeWhoopApiRequest(
       `/v2/cycle?start=${startOfDay.toISOString()}&end=${endOfDay.toISOString()}&limit=25`,

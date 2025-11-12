@@ -67,9 +67,12 @@ function renderNames(containerId: string, items: Array<{ name: string; avatar?: 
 
 async function refresh(force?: string) {
     try {
+        const spinner = document.getElementById('refresh-spinner') as HTMLElement | null;
+        if (spinner) spinner.style.display = 'inline-block';
         const data = await fetchLeaderboard(force);
-        const dateEl = document.getElementById('board-date');
-        if (dateEl) dateEl.textContent = `Date: ${data.date}`;
+        // Header date (EST)
+        const headerDateEl = document.getElementById('header-date');
+        if (headerDateEl) headerDateEl.textContent = formatEstDate(new Date());
         const strain = Array.isArray(data.strain) ? data.strain : [];
         const sleep = Array.isArray(data.sleep) ? data.sleep : [];
         const recovery = Array.isArray(data.recovery) ? data.recovery : [];
@@ -87,13 +90,19 @@ async function refresh(force?: string) {
         renderList('strain-list', strain, (v) => Number(v).toFixed(1));
     } catch (e) {
         console.error(e);
+    } finally {
+        const spinner = document.getElementById('refresh-spinner') as HTMLElement | null;
+        if (spinner) spinner.style.display = 'none';
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Set header date on load (EST)
+    const headerDateEl = document.getElementById('header-date');
+    if (headerDateEl) headerDateEl.textContent = formatEstDate(new Date());
     refresh();
     setInterval(refresh, 60000);
-    const btn = document.getElementById('refresh-strain');
+    const btn = document.getElementById('refresh-btn');
     if (btn) {
         btn.addEventListener('click', () => {
             refresh('all'); // force refresh sleep, recovery, and strain
@@ -103,6 +112,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const applyTheme = (t: string) => {
         if (t === 'light') document.body.classList.add('light');
         else document.body.classList.remove('light');
+        // Update icon
+        const icon = document.getElementById('toggle-theme') as HTMLElement | null;
+        if (icon) icon.textContent = document.body.classList.contains('light') ? '☀️' : '🌙';
     };
     const saved = localStorage.getItem('leaderboard_theme') || 'dark';
     applyTheme(saved);
@@ -114,4 +126,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+function formatEstDate(d: Date): string {
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' })
+        .formatToParts(d);
+    const y = parts.find(p => p.type === 'year')?.value;
+    const m = parts.find(p => p.type === 'month')?.value;
+    const day = parts.find(p => p.type === 'day')?.value;
+    return `${y}-${m}-${day}`;
+}
 
