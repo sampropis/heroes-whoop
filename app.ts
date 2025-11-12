@@ -671,20 +671,33 @@ app.post('/auth/logout', (req: Request, res: Response) => {
 // API Routes
 const APP_TIMEZONE = process.env.TIMEZONE || 'America/New_York';
 function getTodayRange(): { start: Date; end: Date } {
-  // Compute midnight boundaries in the configured timezone, return as UTC Date objects
+  // Compute midnight boundaries in APP_TIMEZONE and return the corresponding UTC instants.
+  const now = new Date();
   const fmt = new Intl.DateTimeFormat('en-US', {
     timeZone: APP_TIMEZONE,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
+    timeZoneName: 'shortOffset',
   });
-  const parts = fmt.formatToParts(new Date());
+  const parts = fmt.formatToParts(now);
   const y = Number(parts.find(p => p.type === 'year')?.value);
   const m = Number(parts.find(p => p.type === 'month')?.value);
   const d = Number(parts.find(p => p.type === 'day')?.value);
-  const start = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
-  const end = new Date(Date.UTC(y, m - 1, d + 1, 0, 0, 0));
-  return { start, end };
+  const tzName = String(parts.find(p => p.type === 'timeZoneName')?.value || 'GMT-00:00');
+  // Parse GMT offset like "GMT-05:00" or "GMT-04:00"
+  const match = tzName.match(/GMT([+-]\d{2}):(\d{2})/);
+  let offsetMinutes = 0;
+  if (match) {
+    const sign = match[1].startsWith('-') ? -1 : 1;
+    const hours = Math.abs(parseInt(match[1], 10));
+    const mins = parseInt(match[2], 10);
+    offsetMinutes = sign * (hours * 60 + mins);
+  }
+  // Midnight in local tz → convert to UTC by subtracting the offset minutes
+  const startUtcMs = Date.UTC(y, m - 1, d, 0, 0, 0) - offsetMinutes * 60 * 1000;
+  const endUtcMs = Date.UTC(y, m - 1, d + 1, 0, 0, 0) - offsetMinutes * 60 * 1000;
+  return { start: new Date(startUtcMs), end: new Date(endUtcMs) };
 }
 
 // Leaderboard aggregation (server-side)
