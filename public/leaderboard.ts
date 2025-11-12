@@ -65,10 +65,10 @@ function renderNames(containerId: string, items: Array<{ name: string; avatar?: 
     });
 }
 
-async function refresh(force?: string) {
+async function refresh(force?: string, silent?: boolean) {
     try {
         const spinner = document.getElementById('refresh-spinner') as HTMLElement | null;
-        if (spinner) spinner.style.display = 'inline-block';
+        if (spinner && !silent) spinner.style.display = 'inline-block';
         const data = await fetchLeaderboard(force);
         // Header date (EST)
         const headerDateEl = document.getElementById('header-date');
@@ -99,13 +99,12 @@ async function refresh(force?: string) {
 document.addEventListener('DOMContentLoaded', () => {
     // Set header date on load (EST)
     const headerDateEl = document.getElementById('header-date');
-    if (headerDateEl) headerDateEl.textContent = formatEstDate(new Date());
-    refresh();
-    setInterval(refresh, 60000);
+    if (headerDateEl) headerDateEl.textContent = `Leaderboard for ${formatEstLongDate(new Date())}`;
+    scheduleRefresh();
     const btn = document.getElementById('refresh-btn');
     if (btn) {
         btn.addEventListener('click', () => {
-            refresh('all'); // force refresh sleep, recovery, and strain
+            refresh('all'); // force refresh sleep, recovery, and strain (with spinner)
         });
     }
     const themeBtn = document.getElementById('toggle-theme');
@@ -134,5 +133,41 @@ function formatEstDate(d: Date): string {
     const m = parts.find(p => p.type === 'month')?.value;
     const day = parts.find(p => p.type === 'day')?.value;
     return `${y}-${m}-${day}`;
+}
+
+function formatEstLongDate(d: Date): string {
+    return new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'long', day: '2-digit' }).format(d);
+}
+
+function getEstHour(): number {
+    return Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: '2-digit', hour12: false }).format(new Date()));
+}
+
+function scheduleRefresh() {
+    const hour = getEstHour();
+    const minute = getEstMinute();
+    const isNight = hour >= 19 || hour <= 4; // 7pm–4am EST
+    if (isNight) {
+        if (minute === 0) {
+            // Top of the hour: refresh everything silently
+            refresh('all', true);
+        }
+    } else {
+        // Daytime cadence:
+        // - Strain every 3 minutes
+        // - Sleep/Recovery every 15 minutes
+        if (minute % 3 === 0) {
+            refresh('strain', true);
+        }
+        if (minute % 15 === 0) {
+            refresh('sleep', true);
+            refresh('recovery', true);
+        }
+    }
+    setTimeout(scheduleRefresh, 60 * 1000);
+}
+
+function getEstMinute(): number {
+    return Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', minute: '2-digit' }).format(new Date()));
 }
 
