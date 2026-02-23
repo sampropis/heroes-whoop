@@ -112,7 +112,7 @@ async function refresh(force?: string, silent?: boolean) {
         }
 
         const weeklySleepItems = weeklySleep.slice(0, 1).map((it: any) => {
-            const perf = typeof it.value === 'number' ? (it.value % 1 === 0 ? Math.round(it.value) : it.value.toFixed(1)) : it.value;
+            const perf = typeof it.value === 'number' ? Math.round(it.value) : it.value;
             return { ...it, _label: `${perf}%` };
         });
         renderList('weekly-sleep-list', weeklySleepItems, (v: any) => typeof v === 'string' ? v : String(v));
