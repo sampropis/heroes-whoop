@@ -20,8 +20,9 @@
         /* Center the header contents (logo + subtitle) */
         header.header .logo { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; margin: 0 auto; }
         header.header h1 { font-size: 36px; }
-        .section-title { font-size: 28px; margin: 0 0 8px 0; font-weight: 600; }
-        .section-date { font-size: 14px; margin: 0 0 16px 0; }
+        .section-title { font-size: 28px; margin: 0 0 16px 0; font-weight: 600; }
+        .header-tight { padding: 12px 0; }
+        .main-content-tight { padding-top: 12px; padding-bottom: 40px; }
         .actions { margin: 12px 0; display: flex; gap: 8px; }
         .btn { background: #222; color: #fff; padding: 6px 10px; border-radius: 6px; border: 1px solid #333; cursor: pointer; font-size: 12px; }
         .btn.btn-subtle { background: transparent; color: inherit; border-color: #444; opacity: 0.8; }
@@ -56,15 +57,14 @@
   </head>
 <body>
     <div class="container">
-        <header class="header">
+        <header class="header header-tight">
             <div class="logo">
                 <img src="/assets/heroes_fitness_banner.png" alt="Heroes Fitness" style="max-height:126px; height:auto; width:auto; display:block;">
             </div>
         </header>
-        <main class="main-content">
+        <main class="main-content main-content-tight">
             <section class="leaderboard-section">
-                <h2 class="section-title">Last Week's Champions</h2>
-                <p id="weekly-date-range" class="section-date muted"></p>
+                <h2 id="weekly-section-title" class="section-title">Last Week's Champions</h2>
                 <div class="boards">
                     <div class="board">
                         <h3>😴 Sleep Performance</h3>
