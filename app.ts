@@ -700,6 +700,169 @@ function getTodayRange(): { start: Date; end: Date } {
   return { start: new Date(startUtcMs), end: new Date(endUtcMs) };
 }
 
+/** Last week = Mon–Sun in APP_TIMEZONE. Returns { startDate, endDate } as YYYY-MM-DD. */
+function getLastWeekRange(): { startDate: string; endDate: string } {
+  const { start } = getTodayRange();
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dayStr = new Intl.DateTimeFormat('en-US', { timeZone: APP_TIMEZONE, weekday: 'short' }).format(start);
+  const dayOfWeek = dayNames.indexOf(dayStr);
+  const lastWeekSunday = new Date(start.getTime() - dayOfWeek * 24 * 60 * 60 * 1000);
+  const lastWeekMonday = new Date(lastWeekSunday.getTime() - 6 * 24 * 60 * 60 * 1000);
+  const fmt = (d: Date) => {
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: APP_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d);
+    const y = parts.find(p => p.type === 'year')?.value;
+    const m = parts.find(p => p.type === 'month')?.value;
+    const day = parts.find(p => p.type === 'day')?.value;
+    return `${y}-${m}-${day}`;
+  };
+  return { startDate: fmt(lastWeekMonday), endDate: fmt(lastWeekSunday) };
+}
+
+/** Get UTC start/end for a calendar date (YYYY-MM-DD) in APP_TIMEZONE. */
+function getDateRangeForDate(dateStr: string): { start: Date; end: Date } {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const fmt = new Intl.DateTimeFormat('en-US', { timeZone: APP_TIMEZONE, timeZoneName: 'shortOffset' });
+  const tzParts = fmt.formatToParts(new Date());
+  const tzName = String(tzParts.find(p => p.type === 'timeZoneName')?.value || 'GMT-00:00');
+  const match = tzName.match(/GMT([+-]\d{2}):(\d{2})/);
+  let offsetMinutes = 0;
+  if (match) {
+    const sign = match[1].startsWith('-') ? -1 : 1;
+    offsetMinutes = sign * (Math.abs(parseInt(match[1], 10)) * 60 + parseInt(match[2], 10));
+  }
+  const startUtcMs = Date.UTC(y, m - 1, d, 0, 0, 0) - offsetMinutes * 60 * 1000;
+  const endUtcMs = Date.UTC(y, m - 1, d + 1, 0, 0, 0) - offsetMinutes * 60 * 1000;
+  return { start: new Date(startUtcMs), end: new Date(endUtcMs) };
+}
+
+/** Generate all date strings between startDate and endDate (inclusive), YYYY-MM-DD. */
+function datesBetween(startDate: string, endDate: string): string[] {
+  const out: string[] = [];
+  const startMs = new Date(startDate + 'T12:00:00Z').getTime();
+  const endMs = new Date(endDate + 'T12:00:00Z').getTime();
+  const dayMs = 24 * 60 * 60 * 1000;
+  for (let t = startMs; t <= endMs; t += dayMs) {
+    out.push(new Date(t).toISOString().slice(0, 10));
+  }
+  return out;
+}
+
+/** Fetch sleep, recovery, strain from WHOOP for a date range and return metrics. */
+async function fetchMetricsForRange(
+  startISO: string,
+  endISO: string,
+  accessToken: string
+): Promise<{ sleepTotalSec: number | null; sleepPerfPct: number | null; sleepConsistencyPct: number | null; recoveryScore: number | null; strainScore: number | null }> {
+  let sleepTotalSec: number | null = null;
+  let sleepPerfPct: number | null = null;
+  let sleepConsistencyPct: number | null = null;
+  let recoveryScore: number | null = null;
+  let strainScore: number | null = null;
+
+  try {
+    const sleepResp: any = await makeWhoopApiRequest(`/v2/activity/sleep?start=${startISO}&end=${endISO}&limit=25`, accessToken);
+    const records: any[] = (sleepResp?.records as any[]) || (Array.isArray(sleepResp) ? sleepResp : []);
+    let totalMinutes = 0;
+    let bestPerf: number | null = null;
+    let bestConsistency: number | null = null;
+    for (const r of records) {
+      const score = r?.score || r?.sleep?.score;
+      const perf = Number(score?.sleep_performance_percentage);
+      if (Number.isFinite(perf)) bestPerf = Math.max(bestPerf ?? perf, perf);
+      const consistency = Number(score?.sleep_consistency_percentage);
+      if (Number.isFinite(consistency)) bestConsistency = Math.max(bestConsistency ?? consistency, consistency);
+      const deep = Number(score?.slow_wave_sleep_minutes) || 0;
+      const rem = Number(score?.rem_sleep_minutes) || 0;
+      const light = Number(score?.light_sleep_minutes) || 0;
+      let minutes = deep + rem + light > 0 ? deep + rem + light : (typeof score?.in_bed_duration_minutes === 'number' ? Number(score.in_bed_duration_minutes) - (Number(score.awake_time_minutes) || 0) : 0);
+      if (minutes <= 0 && r?.start && r?.end) minutes = Math.max(0, Math.round((new Date(r.end).getTime() - new Date(r.start).getTime()) / 60000));
+      totalMinutes += Math.max(0, minutes);
+    }
+    sleepTotalSec = totalMinutes > 0 ? totalMinutes * 60 : null;
+    sleepPerfPct = bestPerf !== null ? Math.round(bestPerf) : null;
+    sleepConsistencyPct = bestConsistency !== null ? Math.round(bestConsistency) : null;
+  } catch (_) { /* ignore */ }
+
+  try {
+    const recResp: any = await makeWhoopApiRequest(`/v2/recovery?start=${startISO}&end=${endISO}&limit=1`, accessToken);
+    const r = (recResp?.records && recResp.records[0]) || (Array.isArray(recResp) ? recResp[0] : recResp);
+    const scoreA = Number(r?.score ?? r?.recovery_score ?? r?.recovery?.score);
+    let extracted = Number.isFinite(scoreA) ? scoreA : extractRecoveryScore(r);
+    if (typeof extracted === 'number') {
+      if (extracted <= 1) extracted = extracted * 100;
+      recoveryScore = extracted;
+    }
+  } catch { /* ignore */ }
+
+  try {
+    const cycResp: any = await makeWhoopApiRequest(`/v2/cycle?start=${startISO}&end=${endISO}&limit=1`, accessToken);
+    const c = (cycResp?.records && cycResp.records[0]) || (Array.isArray(cycResp) ? cycResp[0] : cycResp);
+    const strain = Number(c?.score?.strain ?? c?.strain ?? c?.score_strain ?? c?.cycle?.strain);
+    strainScore = Number.isFinite(strain) ? strain : null;
+    if (recoveryScore == null && c) {
+      const recFromCycle = Number(c?.score?.recovery_score ?? c?.recovery_score ?? c?.recovery?.score);
+      if (Number.isFinite(recFromCycle)) recoveryScore = recFromCycle <= 1 ? recFromCycle * 100 : recFromCycle;
+      else {
+        const cycleId = c?.id ?? c?.cycle_id ?? c?.cycleId;
+        if (cycleId != null) {
+          try {
+            const recObj: any = await makeWhoopApiRequest(`/v2/cycle/${cycleId}/recovery`, accessToken);
+            const score2 = Number(recObj?.score ?? recObj?.recovery_score ?? recObj?.recovery?.score);
+            if (Number.isFinite(score2)) recoveryScore = score2 <= 1 ? score2 * 100 : score2;
+          } catch { /* ignore */ }
+        }
+      }
+    }
+  } catch (_) { /* ignore */ }
+
+  return { sleepTotalSec, sleepPerfPct, sleepConsistencyPct, recoveryScore, strainScore };
+}
+
+/** Backfill daily_metrics for last week when data is missing. Uses existing data when present. */
+async function backfillLastWeekMetrics(
+  db: ReturnType<typeof getDb>,
+  members: Array<{ id: number; refresh_token_enc: string }>,
+  weekStart: string,
+  weekEnd: string
+): Promise<void> {
+  const weekDates = datesBetween(weekStart, weekEnd);
+  for (const m of members) {
+    const existing = db.prepare('SELECT date FROM daily_metrics WHERE member_id = ? AND date >= ? AND date <= ?')
+      .all(m.id, weekStart, weekEnd) as { date: string }[];
+    const existingSet = new Set(existing.map(r => r.date));
+    const missingDates = weekDates.filter(d => !existingSet.has(d));
+    if (missingDates.length === 0) continue;
+
+    try {
+      const refreshToken = decryptSecret(m.refresh_token_enc);
+      const tokenData = await refreshAccessToken(refreshToken);
+      const accessToken = tokenData.access_token;
+      if (tokenData.refresh_token && tokenData.refresh_token !== refreshToken) {
+        const enc = encryptSecret(tokenData.refresh_token);
+        db.prepare("UPDATE members SET refresh_token_enc = ?, last_refreshed_at = datetime('now') WHERE id = ?").run(enc, m.id);
+      }
+
+      for (const dateStr of missingDates) {
+        const { start, end } = getDateRangeForDate(dateStr);
+        const metrics = await fetchMetricsForRange(start.toISOString(), end.toISOString(), accessToken);
+        const hasAny = typeof metrics.sleepPerfPct === 'number' || typeof metrics.recoveryScore === 'number' || typeof metrics.strainScore === 'number';
+        if (hasAny) {
+          const exists = db.prepare('SELECT id FROM daily_metrics WHERE member_id = ? AND date = ?').get(m.id, dateStr) as { id?: number } | undefined;
+          if (exists?.id) {
+            db.prepare("UPDATE daily_metrics SET sleep_total_sec = COALESCE(?, sleep_total_sec), sleep_perf_pct = COALESCE(?, sleep_perf_pct), sleep_consistency_pct = COALESCE(?, sleep_consistency_pct), recovery_score = COALESCE(?, recovery_score), strain_score = COALESCE(?, strain_score), updated_at = datetime('now') WHERE id = ?")
+              .run(metrics.sleepTotalSec, metrics.sleepPerfPct, metrics.sleepConsistencyPct, metrics.recoveryScore, metrics.strainScore, exists.id);
+          } else {
+            db.prepare('INSERT INTO daily_metrics (member_id, date, sleep_total_sec, sleep_perf_pct, sleep_consistency_pct, recovery_score, strain_score) VALUES (?, ?, ?, ?, ?, ?, ?)')
+              .run(m.id, dateStr, metrics.sleepTotalSec, metrics.sleepPerfPct, metrics.sleepConsistencyPct, metrics.recoveryScore, metrics.strainScore);
+          }
+        }
+      }
+    } catch (err) {
+      console.error(`Backfill failed for member ${m.id}`, err);
+    }
+  }
+}
+
 // Leaderboard aggregation (server-side)
 app.get('/api/leaderboard', async (req: Request, res: Response) => {
   try {
@@ -936,11 +1099,47 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
     recoveryBoard.sort((a, b) => b.value - a.value);
     strainBoard.sort((a, b) => b.value - a.value);
 
+    // Weekly champs: avg of last week (Mon–Sun)
+    const { startDate: weekStart, endDate: weekEnd } = getLastWeekRange();
+    await backfillLastWeekMetrics(db, members, weekStart, weekEnd);
+    const weeklySleep: Array<{ name: string; value: number; avatar?: string }> = [];
+    const weeklyRecovery: Array<{ name: string; value: number; avatar?: string }> = [];
+    const weeklyStrain: Array<{ name: string; value: number; avatar?: string }> = [];
+
+    for (const m of members) {
+      const rows = db.prepare(
+        'SELECT sleep_perf_pct, recovery_score, strain_score FROM daily_metrics WHERE member_id = ? AND date >= ? AND date <= ?'
+      ).all(m.id, weekStart, weekEnd) as Array<{ sleep_perf_pct?: number; recovery_score?: number; strain_score?: number }>;
+
+      const sleepVals = rows.map(r => r.sleep_perf_pct).filter((v): v is number => typeof v === 'number');
+      const recVals = rows.map(r => r.recovery_score).filter((v): v is number => typeof v === 'number');
+      const strainVals = rows.map(r => r.strain_score).filter((v): v is number => typeof v === 'number');
+
+      const avgSleep = sleepVals.length ? sleepVals.reduce((a, b) => a + b, 0) / sleepVals.length : null;
+      const avgRec = recVals.length ? recVals.reduce((a, b) => a + b, 0) / recVals.length : null;
+      const avgStrain = strainVals.length ? strainVals.reduce((a, b) => a + b, 0) / strainVals.length : null;
+
+      if (typeof avgSleep === 'number') weeklySleep.push({ name: m.display_name, value: Math.round(avgSleep * 10) / 10, avatar: m.avatar_url });
+      if (typeof avgRec === 'number') weeklyRecovery.push({ name: m.display_name, value: Math.round(avgRec * 10) / 10, avatar: m.avatar_url });
+      if (typeof avgStrain === 'number') weeklyStrain.push({ name: m.display_name, value: Math.round(avgStrain * 10) / 10, avatar: m.avatar_url });
+    }
+
+    weeklySleep.sort((a, b) => b.value - a.value);
+    weeklyRecovery.sort((a, b) => b.value - a.value);
+    weeklyStrain.sort((a, b) => b.value - a.value);
+
     res.json({
       sleep: sleepBoard,
       recovery: recoveryBoard,
       strain: strainBoard,
-      date: todayStr
+      date: todayStr,
+      weekly: {
+        sleep: weeklySleep,
+        recovery: weeklyRecovery,
+        strain: weeklyStrain,
+        weekStart,
+        weekEnd,
+      },
     });
   } catch (error) {
     console.error('Leaderboard aggregation failed', error);

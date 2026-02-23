@@ -65,17 +65,72 @@ function renderNames(containerId: string, items: Array<{ name: string; avatar?: 
     });
 }
 
+function formatWeekRange(startDate: string, endDate: string): string {
+    const fmt = (s: string) => {
+        const [y, m, d] = s.split('-').map(Number);
+        const date = new Date(y, m - 1, d);
+        const month = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(date);
+        const day = getOrdinal(d);
+        return `${month} ${day}, ${y}`;
+    };
+    return `${fmt(startDate)} – ${fmt(endDate)}`;
+}
+
+function getOrdinal(n: number): string {
+    const v = n % 100;
+    if (v >= 11 && v <= 13) return n + 'th';
+    const s: Record<number, string> = { 1: 'st', 2: 'nd', 3: 'rd' };
+    return n + (s[n % 10] || 'th');
+}
+
+function formatTodayWithOrdinal(d: Date): string {
+    const month = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'long' }).format(d);
+    const day = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', day: 'numeric' }).format(d));
+    const year = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric' }).format(d);
+    return `Today, ${month} ${getOrdinal(day)}, ${year}`;
+}
+
 async function refresh(force?: string, silent?: boolean) {
     try {
         const spinner = document.getElementById('refresh-spinner') as HTMLElement | null;
         if (spinner && !silent) spinner.style.display = 'inline-block';
         const data = await fetchLeaderboard(force);
-        // Header date (EST)
-        const headerDateEl = document.getElementById('header-date');
-        if (headerDateEl) headerDateEl.textContent = `Leaderboard for ${formatEstLongDate(new Date())}`;
         const strain = Array.isArray(data.strain) ? data.strain : [];
         const sleep = Array.isArray(data.sleep) ? data.sleep : [];
         const recovery = Array.isArray(data.recovery) ? data.recovery : [];
+
+        // Weekly champs section
+        const weekly = data.weekly || {};
+        const weeklySleep = Array.isArray(weekly.sleep) ? weekly.sleep : [];
+        const weeklyRecovery = Array.isArray(weekly.recovery) ? weekly.recovery : [];
+        const weeklyStrain = Array.isArray(weekly.strain) ? weekly.strain : [];
+
+        const weeklyDateEl = document.getElementById('weekly-date-range');
+        if (weeklyDateEl && weekly.weekStart && weekly.weekEnd) {
+            weeklyDateEl.textContent = formatWeekRange(weekly.weekStart, weekly.weekEnd);
+        }
+
+        const weeklySleepItems = weeklySleep.map((it: any) => {
+            const perf = typeof it.value === 'number' ? (it.value % 1 === 0 ? Math.round(it.value) : it.value.toFixed(1)) : it.value;
+            return { ...it, _label: `${perf}%` };
+        });
+        renderList('weekly-sleep-list', weeklySleepItems, (v: any) => typeof v === 'string' ? v : String(v));
+
+        const weeklyRecoveryItems = weeklyRecovery.map((it: any) => {
+            const n = Number(it.value);
+            const val = n % 1 === 0 ? Math.round(n) : n.toFixed(1);
+            let cls = 'recovery-green';
+            if (n <= 33) cls = 'recovery-red';
+            else if (n <= 66) cls = 'recovery-yellow';
+            return { ...it, _label: `<span class="${cls}">${val}%</span>` };
+        });
+        renderList('weekly-recovery-list', weeklyRecoveryItems, (v) => `${Number(v).toFixed(1)}%`);
+
+        renderList('weekly-strain-list', weeklyStrain, (v) => Number(v).toFixed(1));
+
+        // Today section title
+        const todayTitleEl = document.getElementById('today-section-title');
+        if (todayTitleEl) todayTitleEl.textContent = formatTodayWithOrdinal(new Date());
 
         // Sleep: performance % and consistency %
         const sleepItems = sleep.map((it: any) => {
@@ -105,9 +160,9 @@ async function refresh(force?: string, silent?: boolean) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Set header date on load (EST)
-    const headerDateEl = document.getElementById('header-date');
-    if (headerDateEl) headerDateEl.textContent = `Leaderboard for ${formatEstLongDate(new Date())}`;
+    // Set today section title on load
+    const todayTitleEl = document.getElementById('today-section-title');
+    if (todayTitleEl) todayTitleEl.textContent = formatTodayWithOrdinal(new Date());
     // Immediate fetch so the page is populated right away
     refresh('all');
     // Then schedule background refreshes
