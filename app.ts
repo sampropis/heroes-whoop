@@ -818,19 +818,23 @@ async function fetchMetricsForRange(
   return { sleepTotalSec, sleepPerfPct, sleepConsistencyPct, recoveryScore, strainScore };
 }
 
-/** Backfill daily_metrics for last week when data is missing. Uses existing data when present. */
+/** Backfill daily_metrics for last week (and optionally today) when data is missing. Uses existing data when present. */
 async function backfillLastWeekMetrics(
   db: ReturnType<typeof getDb>,
   members: Array<{ id: number; refresh_token_enc: string }>,
   weekStart: string,
-  weekEnd: string
+  weekEnd: string,
+  todayStr?: string
 ): Promise<void> {
   const weekDates = datesBetween(weekStart, weekEnd);
+  const datesToBackfill = todayStr ? [...weekDates, todayStr] : weekDates;
   for (const m of members) {
-    const existing = db.prepare('SELECT date FROM daily_metrics WHERE member_id = ? AND date >= ? AND date <= ?')
-      .all(m.id, weekStart, weekEnd) as { date: string }[];
+    const existingRows = todayStr
+      ? db.prepare('SELECT date FROM daily_metrics WHERE member_id = ? AND ((date >= ? AND date <= ?) OR date = ?)').all(m.id, weekStart, weekEnd, todayStr)
+      : db.prepare('SELECT date FROM daily_metrics WHERE member_id = ? AND date >= ? AND date <= ?').all(m.id, weekStart, weekEnd);
+    const existing = existingRows as { date: string }[];
     const existingSet = new Set(existing.map(r => r.date));
-    const missingDates = weekDates.filter(d => !existingSet.has(d));
+    const missingDates = datesToBackfill.filter(d => !existingSet.has(d));
     if (missingDates.length === 0) continue;
 
     try {
@@ -1094,14 +1098,25 @@ app.get('/api/leaderboard', async (req: Request, res: Response) => {
       if (typeof strainScore === 'number') strainBoard.push({ name: m.display_name, value: strainScore, avatar: m.avatar_url });
     }
 
-    // Sort desc
+    // Backfill last week + today so we have data for both sections (main loop may fail for today due to WHOOP API semantics)
+    const { startDate: weekStart, endDate: weekEnd } = getLastWeekRange();
+    await backfillLastWeekMetrics(db, members, weekStart, weekEnd, todayStr);
+
+    // Build Today boards from daily_metrics (from main loop fetch or backfill)
+    sleepBoard.length = 0;
+    recoveryBoard.length = 0;
+    strainBoard.length = 0;
+    for (const m of members) {
+      const row = db.prepare('SELECT sleep_total_sec, sleep_perf_pct, sleep_consistency_pct, recovery_score, strain_score FROM daily_metrics WHERE member_id = ? AND date = ?')
+        .get(m.id, todayStr) as { sleep_total_sec?: number; sleep_perf_pct?: number; sleep_consistency_pct?: number; recovery_score?: number; strain_score?: number } | undefined;
+      if (!row) continue;
+      if (typeof row.sleep_perf_pct === 'number') sleepBoard.push({ name: m.display_name, value: row.sleep_perf_pct, seconds: typeof row.sleep_total_sec === 'number' ? row.sleep_total_sec : undefined, consistency: typeof row.sleep_consistency_pct === 'number' ? row.sleep_consistency_pct : undefined, avatar: m.avatar_url });
+      if (typeof row.recovery_score === 'number') recoveryBoard.push({ name: m.display_name, value: row.recovery_score, avatar: m.avatar_url });
+      if (typeof row.strain_score === 'number') strainBoard.push({ name: m.display_name, value: row.strain_score, avatar: m.avatar_url });
+    }
     sleepBoard.sort((a, b) => b.value - a.value);
     recoveryBoard.sort((a, b) => b.value - a.value);
     strainBoard.sort((a, b) => b.value - a.value);
-
-    // Weekly champs: avg of last week (Mon–Sun)
-    const { startDate: weekStart, endDate: weekEnd } = getLastWeekRange();
-    await backfillLastWeekMetrics(db, members, weekStart, weekEnd);
     const weeklySleep: Array<{ name: string; value: number; avatar?: string }> = [];
     const weeklyRecovery: Array<{ name: string; value: number; avatar?: string }> = [];
     const weeklyStrain: Array<{ name: string; value: number; avatar?: string }> = [];
